@@ -19,6 +19,8 @@ class CardController extends Controller
 
     public function show(Person $person)
     {
+        abort_unless($person->isApproved(), 404);
+
         return $this->render(collect([$person]));
     }
 

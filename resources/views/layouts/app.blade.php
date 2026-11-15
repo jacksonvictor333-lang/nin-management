@@ -1119,6 +1119,27 @@
         }
     </style>
 
+    <style>
+        .menu .count.attn { background: #f59e0b !important; color: #fff !important; }
+        .bell { position: relative; }
+        .bell summary { list-style: none; width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; cursor: pointer; border: 1px solid var(--border); background: #fff; color: var(--text); font-size: 18px; position: relative; }
+        .bell summary::-webkit-details-marker { display: none; }
+        .bell summary:hover { border-color: var(--primary-light); color: var(--primary); }
+        .bell-n { position: absolute; top: -5px; right: -5px; min-width: 19px; height: 19px; padding: 0 5px; border-radius: 999px; background: #ef4444; color: #fff; font-size: 11px; font-weight: 800; display: grid; place-items: center; border: 2px solid #fff; }
+        .bell-pop { position: absolute; right: 0; top: calc(100% + 8px); width: min(360px, calc(100vw - 24px)); background: #fff; border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 24px 48px -16px rgba(15,23,42,.3); z-index: 60; overflow: hidden; }
+        .bell-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+        .bell-head b { font-size: 14px; color: var(--ink); }
+        .bell-head form { margin: 0; }
+        .bell-head button { border: 0; background: none; color: var(--primary); font-weight: 600; font-size: 12.5px; cursor: pointer; }
+        .bell-item { display: flex; gap: 11px; padding: 12px 16px; text-decoration: none; color: var(--text); font-size: 13px; line-height: 1.45; border-bottom: 1px solid #f1f5f9; }
+        .bell-item:hover { background: #f8fafc; }
+        .bell-item.unread { background: #f0fdf4; }
+        .bell-item > i { font-size: 17px; margin-top: 1px; }
+        .bell-item em { display: block; color: var(--muted); font-size: 12.5px; }
+        .bell-item small { display: block; color: var(--muted); font-size: 11.5px; margin-top: 2px; }
+        .bell-empty { padding: 26px 16px; text-align: center; color: var(--muted); font-size: 13px; }
+    </style>
+
     @stack('styles')
 </head>
 
@@ -1162,12 +1183,24 @@
         $role = $authUser->role ?? 'Administrator';
         $isAdmin = $role === 'Administrator';
         $canEdit = in_array($role, ['Administrator', 'Registrar'], true);
+        $canApprove = in_array($role, ['Administrator', 'Approver'], true);
+
+        // Idadi kwenye menyu: foleni ya idhini, na rekodi zangu zinazohitaji kazi yangu.
+        $pendingApprovals = $canApprove
+            ? \App\Models\Person::anyStage()->whereIn('stage', ['submitted', 'in_review'])->count()
+            : 0;
+        $needsMe = $canEdit && $authUser
+            ? \App\Models\Person::anyStage()->whereIn('stage', ['returned', 'draft'])
+                ->where(fn ($q) => $q->where('created_by', $authUser->id)->orWhere('submitted_by', $authUser->id))->count()
+            : 0;
 
         $sections = [
             'Main Menu' => [
                 ['dashboard', 'bi-house-door', 'Dashboard', 'dashboard', true],
                 ['people.index', 'bi-people', 'Registered Persons', ['people.index', 'people.show', 'people.edit'], true, number_format($totalPersons)],
                 ['people.create', 'bi-person-plus', 'Register New Person', 'people.create', $canEdit],
+                ['approvals.mine', 'bi-inboxes', 'My Submissions', 'approvals.mine', $canEdit, $needsMe ?: null, 'attn'],
+                ['approvals.index', 'bi-patch-check', 'Approvals', 'approvals.index', $canApprove, $pendingApprovals ?: null, 'attn'],
                 ['people.import', 'bi-file-earmark-spreadsheet', 'Import from CSV', 'people.import*', $canEdit],
                 ['search', 'bi-search', 'Search NIN', 'search', true],
                 ['verifications.index', 'bi-shield-check', 'NIN Verifications', 'verifications.*', true],
@@ -1202,7 +1235,7 @@
                             <a href="{{ $link($route) }}" class="{{ $active ? 'active' : '' }}" @if ($route === 'search') id="menuSearch" @endif>
                                 <i class="bi {{ $icon }}"></i>
                                 <span>{{ $text }}</span>
-                                @isset($item[5])<span class="count">{{ $item[5] }}</span>@endisset
+                                @isset($item[5])<span class="count {{ $item[6] ?? '' }}">{{ $item[5] }}</span>@endisset
                             </a>
                         </li>
                     @endforeach
@@ -1264,6 +1297,39 @@
         </div>
 
         <div class="topbar-right">
+
+            @php
+                $unread = $authUser ? $authUser->unreadNotifications()->count() : 0;
+                $notes = $authUser ? $authUser->notifications()->latest()->take(8)->get() : collect();
+                $noteIcon = ['approved' => ['bi-patch-check-fill', '#15803d'], 'returned' => ['bi-arrow-return-left', '#b45309'], 'rejected' => ['bi-x-octagon-fill', '#b91c1c']];
+            @endphp
+            <details class="bell" id="bell">
+                <summary aria-label="Notifications">
+                    <i class="bi bi-bell{{ $unread ? '-fill' : '' }}"></i>
+                    @if ($unread)<span class="bell-n">{{ $unread > 9 ? '9+' : $unread }}</span>@endif
+                </summary>
+                <div class="bell-pop">
+                    <div class="bell-head">
+                        <b>Notifications</b>
+                        @if ($unread)
+                            <form method="POST" action="{{ route('notifications.read-all') }}">@csrf<button type="submit">Mark all as read</button></form>
+                        @endif
+                    </div>
+                    @forelse ($notes as $n)
+                        @php [$ni, $nc] = $noteIcon[$n->data['action'] ?? ''] ?? ['bi-bell', '#334155']; @endphp
+                        <a href="{{ route('notifications.open', $n->id) }}" class="bell-item {{ $n->read_at ? '' : 'unread' }}">
+                            <i class="bi {{ $ni }}" style="color: {{ $nc }}"></i>
+                            <span>
+                                {{ $n->data['message'] ?? 'Update' }}
+                                @if (! empty($n->data['note']))<em>“{{ Str::limit($n->data['note'], 90) }}”</em>@endif
+                                <small>{{ $n->created_at->diffForHumans() }}{{ ! empty($n->data['by']) ? ' · ' . $n->data['by'] : '' }}</small>
+                            </span>
+                        </a>
+                    @empty
+                        <div class="bell-empty"><i class="bi bi-bell-slash"></i> No notifications yet</div>
+                    @endforelse
+                </div>
+            </details>
 
             <div class="navbar-count">
 
@@ -1449,6 +1515,14 @@
     });
 
 })();
+</script>
+
+<script>
+    // Funga kengele ukibonyeza nje yake.
+    document.addEventListener('click', function (e) {
+        const bell = document.getElementById('bell');
+        if (bell && bell.open && !bell.contains(e.target)) bell.open = false;
+    });
 </script>
 
 @stack('scripts')

@@ -6,7 +6,8 @@
 @php
     $roleInfo = [
         'Administrator' => ['violet', 'Full access, including users and API settings'],
-        'Registrar' => ['ok', 'Register and edit persons, photos'],
+        'Registrar' => ['ok', 'Register persons and submit them for approval'],
+        'Approver' => ['info', 'Review, approve, return or reject registrations'],
         'Viewer' => ['', 'View records and reports only'],
     ];
     $me = auth()->user();
@@ -20,7 +21,7 @@
 
 @push('styles')
 <style>
-    .roles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+    .roles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
     .role-card { border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; background: #fff; }
     .role-card b { display: block; color: var(--ink); font-size: 14px; margin: 6px 0 2px; }
     .role-card small { color: var(--muted); font-size: 12.5px; }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ActivityLog;
 use App\Models\Person;
+use App\Models\PersonReview;
 use App\Support\PeopleImporter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -81,23 +82,31 @@ class ImportController extends Controller
         $includeWarned = $request->boolean('include_warnings');
         $toImport = collect($rows)->filter(fn ($r) => ! $r['errors'] && ($includeWarned || ! $r['warnings']));
 
-        $created = DB::transaction(function () use ($toImport) {
-            return $toImport->map(function ($r) {
-                $data = $r['data'];
-                $data['nin'] = Person::generateNin($data['date_of_birth']);
+        // Zinaingia kama "Imewasilishwa": NIN inatolewa kila moja ikiidhinishwa.
+        $userId = $request->user()->id;
+        $created = DB::transaction(function () use ($toImport, $userId) {
+            return $toImport->map(function ($r) use ($userId) {
+                $person = Person::create($r['data'] + [
+                    'stage' => Person::SUBMITTED,
+                    'created_by' => $userId,
+                    'submitted_by' => $userId,
+                    'submitted_at' => now(),
+                ]);
 
-                return Person::create($data);
+                PersonReview::create(['person_id' => $person->id, 'user_id' => $userId, 'action' => 'submitted', 'note' => 'Imported from CSV']);
+
+                return $person;
             });
         });
 
-        ActivityLog::record('person.imported', "Imported {$created->count()} people from CSV", null, [
-            'nins' => $created->pluck('nin')->all(),
+        ActivityLog::record('person.imported', "Imported {$created->count()} people from CSV (sent for approval)", null, [
+            'ids' => $created->pluck('id')->all(),
             'skipped' => count($rows) - $created->count(),
         ]);
 
         return redirect()
-            ->route('people.index')
-            ->with('success', "Imported {$created->count()} " . Str::plural('person', $created->count()) . '. ' .
+            ->route('approvals.mine')
+            ->with('success', "Imported {$created->count()} " . Str::plural('person', $created->count()) . ' and sent them for approval. ' .
                 (count($rows) - $created->count() ? (count($rows) - $created->count()) . ' rows were skipped.' : ''));
     }
 

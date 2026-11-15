@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\ApiSettingsController;
+use App\Http\Controllers\ApprovalController;
 use App\Http\Controllers\ArchiveController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BackupController;
@@ -14,6 +15,7 @@ use App\Http\Controllers\DataQualityController;
 use App\Http\Controllers\GeoController;
 use App\Http\Controllers\ImportController;
 use App\Http\Controllers\LocationController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PersonController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\PasswordResetController;
@@ -95,6 +97,10 @@ Route::middleware(['auth', 'auth.session', 'active'])->group(function () {
 
     Route::get('/geo', [GeoController::class, 'index'])->name('geo.index');
 
+    // Kengele ya taarifa (idhini zilizofanyika kwenye rekodi zangu)
+    Route::get('/notifications/{id}', [NotificationController::class, 'open'])->name('notifications.open');
+    Route::post('/notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.read-all');
+
     // IMPORTANT: Lookup route must come before {person}
     Route::get('/people/lookup/{nin}', [PersonController::class, 'lookup'])
         ->middleware('throttle:30,1')
@@ -127,6 +133,22 @@ Route::middleware(['auth', 'auth.session', 'active'])->group(function () {
 
         Route::patch('/people/{person}/signature', [PersonController::class, 'updateSignature'])->name('people.signature.update');
         Route::delete('/people/{person}/signature', [PersonController::class, 'destroySignature'])->name('people.signature.destroy');
+
+        // Rekodi nilizosajili na hatua zake; kuwasilisha rasimu kwa idhini.
+        Route::get('/my-submissions', [ApprovalController::class, 'mine'])->name('approvals.mine');
+        Route::post('/people/{person}/submit', [ApprovalController::class, 'submit'])->name('approvals.submit');
+    });
+
+    // ---------- Administrator + Approver: kuidhinisha ----------
+
+    Route::middleware('role:Administrator,Approver')->group(function () {
+        Route::get('/approvals', [ApprovalController::class, 'index'])->name('approvals.index');
+        Route::post('/approvals/bulk', [ApprovalController::class, 'bulkApprove'])->name('approvals.bulk');
+        Route::post('/people/{person}/review', [ApprovalController::class, 'claim'])->name('approvals.claim');
+        Route::post('/people/{person}/release', [ApprovalController::class, 'release'])->name('approvals.release');
+        Route::post('/people/{person}/approve', [ApprovalController::class, 'approve'])->name('approvals.approve');
+        Route::post('/people/{person}/return', [ApprovalController::class, 'returnForCorrection'])->name('approvals.return');
+        Route::post('/people/{person}/reject', [ApprovalController::class, 'reject'])->name('approvals.reject');
     });
 
     Route::get('/people/{person}', [PersonController::class, 'show'])->name('people.show');

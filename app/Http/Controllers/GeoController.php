@@ -77,6 +77,7 @@ class GeoController extends Controller
         $peopleColumn = ['regions' => 'region_id', 'districts' => 'district_id', 'wards' => 'ward_id', 'villages' => 'village_id'][$level];
         $peopleCounts = DB::table('people')
             ->whereNull('deleted_at')
+            ->where('stage', 'approved')
             ->whereIn($peopleColumn, $items->pluck('id'))
             ->selectRaw("{$peopleColumn} as k, COUNT(*) as c")
             ->groupBy($peopleColumn)

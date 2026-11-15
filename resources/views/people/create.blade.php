@@ -267,6 +267,9 @@
     .btn-primary:disabled { opacity: .55; cursor: not-allowed; transform: none; }
     .foot-right { display: flex; gap: 10px; }
     .hidden { display: none !important; }
+    .returned-note { display: flex; gap: 10px; margin-top: 14px; padding: 12px 14px; border-radius: 12px; background: #fffbeb; border: 1px solid #fde68a; color: #78350f; font-size: 13px; line-height: 1.5; }
+    .returned-note b { display: block; }
+    .returned-note.info { background: #eff6ff; border-color: #bfdbfe; color: #1e3a8a; }
 
     @media (max-width: 1100px) {
         .wiz { grid-template-columns: 1fr; }
@@ -295,7 +298,18 @@
     <aside class="stepper">
         <div class="stepper-head">
             <h2>{{ $editing ? 'Edit ' . $person->first_name : 'New registration' }}</h2>
-            <p>{{ $editing ? 'Update the details below. The NIN stays the same.' : 'Fill in the details below. A unique 20-digit NIN is generated automatically.' }}</p>
+            <p>{{ $editing ? 'Update the details below.' . ($person->nin ? ' The NIN stays the same.' : '') : 'Fill in the details below, then submit for approval. The NIN is issued once the record is approved.' }}</p>
+            @if ($editing && $person->stage === 'returned' && $person->review_note)
+                <div class="returned-note">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    <span><b>Returned for correction{{ $person->reviewer ? ' by ' . $person->reviewer->name : '' }}</b>{{ $person->review_note }}</span>
+                </div>
+            @elseif ($editing && $person->stage === 'approved')
+                <div class="returned-note info">
+                    <i class="bi bi-info-circle-fill"></i>
+                    <span>Changing the <b style="display:inline">name, date of birth, sex or photo</b> sends this record for re-approval.</span>
+                </div>
+            @endif
             <div class="progress"><span id="progressBar" style="width:20%"></span></div>
             <div class="progress-label"><span id="progressText">Step 1 of 5</span><span id="progressPct">20%</span></div>
         </div>
@@ -421,7 +435,7 @@
                         <small>National Identification Number · cannot be changed</small>
                         <b>{{ $person->nin }}</b>
                     @else
-                        <small>NIN preview: date part is taken from the birth date</small>
+                        <small>NIN preview: issued on approval, starting with the birth date</small>
                         <b id="ninPreview">YYYYMMDD ············</b>
                     @endif
                 </div>
@@ -683,8 +697,21 @@
 
             <div class="foot-right">
                 <button type="button" class="btn-w btn-primary" id="nextBtn">Continue <i class="bi bi-arrow-right"></i></button>
-                <button type="submit" class="btn-w btn-primary hidden" id="submitBtn" disabled>
-                    @if ($editing)<i class="bi bi-check2-circle"></i> Save changes @else<i class="bi bi-fingerprint"></i> Register & generate NIN @endif
+                @php $draftable = ! $editing || in_array($person->stage, ['draft', 'returned'], true); @endphp
+                <input type="hidden" name="action" id="actionInput" value="{{ $draftable ? 'submit' : 'save' }}">
+                @if ($draftable)
+                    <button type="submit" value="{{ $editing ? 'save' : 'draft' }}" class="btn-w btn-ghost hidden js-submit" id="draftBtn" disabled>
+                        <i class="bi bi-floppy"></i> {{ $editing ? 'Save only' : 'Save as draft' }}
+                    </button>
+                @endif
+                <button type="submit" value="{{ $draftable ? 'submit' : 'save' }}" class="btn-w btn-primary hidden js-submit" id="submitBtn" disabled>
+                    @if (! $draftable)
+                        <i class="bi bi-check2-circle"></i> Save changes
+                    @elseif ($editing)
+                        <i class="bi bi-send"></i> {{ $person->stage === 'returned' ? 'Save & resubmit' : 'Save & submit' }}
+                    @else
+                        <i class="bi bi-send"></i> Submit for approval
+                    @endif
                 </button>
             </div>
         </div>
@@ -748,6 +775,7 @@ document.addEventListener('DOMContentLoaded', function () {
         $('cancelBtn').classList.toggle('hidden', n !== 1);
         $('nextBtn').classList.toggle('hidden', n === TOTAL);
         $('submitBtn').classList.toggle('hidden', n !== TOTAL);
+        if ($('draftBtn')) $('draftBtn').classList.toggle('hidden', n !== TOTAL);
 
         if (n === TOTAL) { buildReview(); checkDuplicates(); }
 
@@ -780,8 +808,11 @@ document.addEventListener('DOMContentLoaded', function () {
         for (let s = 1; s < TOTAL; s++) {
             if (!validateStep(s)) { e.preventDefault(); show(s); validateStep(s); return; }
         }
-        $('submitBtn').disabled = true;
-        $('submitBtn').innerHTML = '<i class="bi bi-hourglass-split"></i> Registering…';
+        // Kitufe kilichobonyezwa kinaamua: rasimu, kuhifadhi au kuwasilisha kwa idhini.
+        const clicked = e.submitter && e.submitter.classList.contains('js-submit') ? e.submitter : $('submitBtn');
+        $('actionInput').value = clicked.value;
+        form.querySelectorAll('.js-submit').forEach((b) => b.disabled = true);
+        clicked.innerHTML = '<i class="bi bi-hourglass-split"></i> Saving…';
     });
 
     // ==========================================
@@ -792,7 +823,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function refreshSubmit() {
         const ok = $('confirmCheck').checked && (!dupFound || ($('dupConfirm') && $('dupConfirm').checked));
-        $('submitBtn').disabled = !ok;
+        form.querySelectorAll('.js-submit').forEach((b) => b.disabled = !ok);
     }
 
     async function checkDuplicates() {
@@ -812,7 +843,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!dupFound) $('dupConfirm').checked = false;
             $('dupList').innerHTML = matches.map((m) =>
                 '<a class="dup-item" href="' + m.url + '" target="_blank" rel="noopener"><i class="bi bi-person-badge" style="font-size:20px;color:#b91c1c"></i>' +
-                '<span><b>' + escape(m.name) + '</b><small>NIN ' + m.nin + ' · born ' + escape(m.dob || '—') + (m.region ? ' · ' + escape(m.region) : '') + '</small></span>' +
+                '<span><b>' + escape(m.name) + '</b><small>' + (m.nin ? 'NIN ' + m.nin : 'Awaiting approval') + ' · born ' + escape(m.dob || '—') + (m.region ? ' · ' + escape(m.region) : '') + '</small></span>' +
                 '<span class="why">' + m.reasons.map((r) => '<span>' + escape(r) + '</span>').join('') + '</span></a>'
             ).join('');
         } catch (e) { /* ukaguzi wa ziada tu: seva bado inakagua wakati wa kuhifadhi */ }

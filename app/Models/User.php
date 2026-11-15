@@ -65,4 +65,16 @@ class User extends Authenticatable
     {
         return filled($this->two_factor_secret) && $this->two_factor_confirmed_at !== null;
     }
+
+    /** Anaweza kusajili na kuhariri rekodi. */
+    public function canRegister(): bool
+    {
+        return in_array($this->role ?? 'Administrator', ['Administrator', 'Registrar'], true);
+    }
+
+    /** Anaweza kuidhinisha, kurudisha au kukataa rekodi. */
+    public function canApprove(): bool
+    {
+        return in_array($this->role ?? 'Administrator', ['Administrator', 'Approver'], true);
+    }
 }

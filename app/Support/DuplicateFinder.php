@@ -37,7 +37,8 @@ class DuplicateFinder
             return collect();
         }
 
-        $pool = Person::query()
+        $pool = Person::anyStage()
+            ->where('stage', '!=', Person::REJECTED)
             ->when($exceptId, fn ($q) => $q->whereKeyNot($exceptId))
             ->where(function ($q) use ($dob, $phone) {
                 if ($dob) {

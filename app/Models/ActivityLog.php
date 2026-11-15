@@ -70,6 +70,7 @@ class ActivityLog extends Model
             'location' => ['bi-geo-alt', '#15803d', '#dcfce7'],
             'card' => ['bi-printer', '#334155', '#f1f5f9'],
             'backup' => ['bi-database-down', '#0369a1', '#e0f2fe'],
+            'approval' => ['bi-patch-check', '#0e7490', '#cffafe'],
             default => ['bi-activity', '#334155', '#f1f5f9'],
         };
     }

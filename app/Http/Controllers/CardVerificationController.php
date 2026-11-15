@@ -26,6 +26,9 @@ class CardVerificationController extends Controller
 
     public function show(Person $person)
     {
+        // Rekodi inayosubiri idhini (au iliyokataliwa) haina kadi halali.
+        abort_unless($person->isApproved() && $person->nin, 404);
+
         $nin = (string) $person->nin;
 
         return response()

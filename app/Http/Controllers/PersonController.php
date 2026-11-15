@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ActivityLog;
+use App\Support\ApprovalFlow;
 use App\Support\DuplicateFinder;
 use App\Support\QrCode;
 use App\Models\Person;
@@ -67,6 +68,8 @@ class PersonController extends Controller
      */
     public function edit(Person $person)
     {
+        $this->ensureEditable($person);
+
         $regions = Region::orderBy('name')->get(['id', 'name']);
 
         return view('people.create', compact('regions', 'person'));
@@ -184,7 +187,10 @@ class PersonController extends Controller
                 ->withErrors(['confirm_not_duplicate' => 'This person may already be registered. Check the matching records and confirm before registering.']);
         }
 
-        $data['nin'] = Person::generateNin($data['date_of_birth']);
+        // NIN haitolewi sasa: inatolewa rekodi ikiidhinishwa.
+        $submit = $request->input('action') !== 'draft';
+        $data['stage'] = Person::DRAFT;
+        $data['created_by'] = $request->user()->id;
 
         if ($request->hasFile('profile_picture')) {
             $data['profile_picture'] = $request->file('profile_picture')->store('profile-pictures', 'public');
@@ -192,12 +198,21 @@ class PersonController extends Controller
 
         $person = Person::create($data);
 
-        ActivityLog::record('person.created', "Registered {$person->full_name} (NIN {$person->nin})", $person,
+        ActivityLog::record('person.created', "Registered {$person->full_name}" . ($submit ? '' : ' (draft)'), $person,
             $duplicates->isNotEmpty() ? ['confirmed_not_duplicate_of' => $duplicates->map(fn ($d) => $d['person']->nin)->all()] : []);
+
+        if ($submit) {
+            ApprovalFlow::move($person, Person::SUBMITTED, 'submitted', null, [
+                'submitted_by' => $request->user()->id,
+                'submitted_at' => now(),
+            ]);
+        }
 
         return redirect()
             ->route('people.show', $person->id)
-            ->with('success', 'Person registered successfully. NIN generated automatically.');
+            ->with('success', $submit
+                ? 'Registered and sent for approval. The NIN will be issued once the record is approved.'
+                : 'Saved as draft. Submit it for approval when it is complete.');
     }
 
     /**
@@ -205,6 +220,7 @@ class PersonController extends Controller
      */
     public function update(Request $request, Person $person)
     {
+        $this->ensureEditable($person);
         $data = $this->validatedData($request, true);
 
         if ($request->hasFile('profile_picture')) {
@@ -219,6 +235,7 @@ class PersonController extends Controller
         $person->fill($data);
         $changes = $this->describeChanges($person);
         $changed = array_keys($person->getDirty());
+        $sensitive = $person->isApproved() ? array_values(array_intersect($changed, Person::SENSITIVE)) : [];
         $person->save();
 
         if ($changed) {
@@ -230,9 +247,57 @@ class PersonController extends Controller
             );
         }
 
+        // Jina, tarehe ya kuzaliwa, jinsia au picha ya rekodi iliyoidhinishwa: idhini tena.
+        if ($sensitive) {
+            $this->sendForReapproval($person, $sensitive);
+
+            return redirect()->route('people.show', $person)
+                ->with('success', 'Details updated. Because ' . $this->fieldList($sensitive)
+                    . ' changed, the record was sent for re-approval. The NIN stays the same.');
+        }
+
+        if ($request->input('action') === 'submit' && $person->canBeSubmittedBy($request->user())) {
+            $again = $person->stage === Person::RETURNED;
+            ApprovalFlow::move($person, Person::SUBMITTED, $again ? 'resubmitted' : 'submitted', null, [
+                'submitted_by' => $request->user()->id,
+                'submitted_at' => now(),
+                'reviewer_id' => null,
+                'review_note' => null,
+            ]);
+
+            return redirect()->route('people.show', $person)
+                ->with('success', $again ? 'Corrections saved and sent back for approval.' : 'Saved and submitted for approval.');
+        }
+
         return redirect()
             ->route('people.show', $person)
             ->with('success', $changed ? 'Person details updated successfully.' : 'No changes were made.');
+    }
+
+    /** Rekodi iliyowasilishwa, inayokaguliwa au iliyokataliwa haiwezi kuhaririwa. */
+    private function ensureEditable(Person $person): void
+    {
+        abort_unless($person->canBeEditedBy(auth()->user()), 403, match ($person->stage) {
+            Person::SUBMITTED, Person::IN_REVIEW => 'This record is waiting for approval and cannot be changed now.',
+            Person::REJECTED => 'This record was rejected and cannot be changed.',
+            default => 'You cannot change this record.',
+        });
+    }
+
+    /** Badiliko nyeti kwenye rekodi iliyoidhinishwa: irudi kwenye foleni (NIN inabaki). */
+    private function sendForReapproval(Person $person, array $fields): void
+    {
+        ApprovalFlow::move($person, Person::SUBMITTED, 'edited', 'Changed: ' . $this->fieldList($fields), [
+            'submitted_by' => auth()->id(),
+            'submitted_at' => now(),
+            'reviewer_id' => null,
+            'review_note' => null,
+        ]);
+    }
+
+    private function fieldList(array $fields): string
+    {
+        return implode(', ', array_map(fn ($f) => $f === 'profile_picture' ? 'photo' : str_replace('_', ' ', $f), $fields));
     }
 
     /**
@@ -253,6 +318,7 @@ class PersonController extends Controller
             'matches' => $finder->candidates($data, $data['except'] ?? null)->take(5)->map(fn ($m) => [
                 'name' => $m['person']->full_name,
                 'nin' => $m['person']->nin,
+                'stage' => $m['person']->stageLabel(),
                 'dob' => $m['person']->date_of_birth?->format('d M Y'),
                 'region' => $m['person']->region,
                 'phone' => $m['person']->phone,
@@ -323,11 +389,19 @@ class PersonController extends Controller
             ->take(6)
             ->get();
 
-        // QR ya kadi: kiungo kilichosainiwa cha ukurasa wa uthibitisho.
-        $verifyUrl = CardVerificationController::urlFor($person);
-        $qrSvg = QrCode::svg($verifyUrl, 200, '#14532d');
+        // QR ya kadi (rekodi zilizoidhinishwa tu): kiungo kilichosainiwa cha ukurasa wa uthibitisho.
+        $verifyUrl = $person->isApproved() ? CardVerificationController::urlFor($person) : null;
+        $qrSvg = $verifyUrl ? QrCode::svg($verifyUrl, 200, '#14532d') : null;
 
-        return view('people.show', compact('person', 'history', 'verifyUrl', 'qrSvg'));
+        $person->load(['creator:id,name', 'submitter:id,name', 'reviewer:id,name']);
+        $reviews = $person->reviews()->with('user:id,name')->get();
+
+        // Kwa anayeidhinisha: rekodi zinazofanana (huenda ni mtu yuleyule).
+        $matches = ! $person->isApproved() && auth()->user()->canApprove()
+            ? app(DuplicateFinder::class)->candidates($person->only(['first_name', 'middle_name', 'last_name', 'date_of_birth', 'phone']), $person->id)->take(5)
+            : collect();
+
+        return view('people.show', compact('person', 'history', 'verifyUrl', 'qrSvg', 'reviews', 'matches'));
     }
 
     /**
@@ -335,6 +409,8 @@ class PersonController extends Controller
      */
     public function updatePhoto(Request $request, Person $person)
     {
+        $this->ensureEditable($person);
+
         $request->validate([
             'profile_picture' => ['required', 'image', 'mimes:jpg,jpeg,png', 'max:2048'],
         ]);
@@ -351,6 +427,13 @@ class PersonController extends Controller
 
         ActivityLog::record('photo.updated', ($oldPath ? 'Changed' : 'Added') . " profile picture for {$person->full_name}", $person);
 
+        if ($person->isApproved()) {
+            $this->sendForReapproval($person, ['profile_picture']);
+
+            return redirect()->route('people.show', $person)
+                ->with('success', 'Profile picture updated and sent for re-approval.');
+        }
+
         return redirect()
             ->route('people.show', $person)
             ->with('success', 'Profile picture updated successfully.');
@@ -361,6 +444,8 @@ class PersonController extends Controller
      */
     public function destroyPhoto(Person $person)
     {
+        $this->ensureEditable($person);
+
         if ($person->profile_picture) {
             Storage::disk('public')->delete($person->profile_picture);
 
@@ -380,6 +465,8 @@ class PersonController extends Controller
      */
     public function updateSignature(Request $request, Person $person)
     {
+        $this->ensureEditable($person);
+
         $request->validate([
             'signature_data' => ['nullable', 'required_without:signature_file', 'string', 'max:1500000', 'starts_with:data:image/png;base64,'],
             'signature_file' => ['nullable', 'required_without:signature_data', 'image', 'mimes:png,jpg,jpeg', 'max:1024'],
@@ -416,6 +503,8 @@ class PersonController extends Controller
 
     public function destroySignature(Person $person)
     {
+        $this->ensureEditable($person);
+
         if ($person->signature) {
             Storage::disk('public')->delete($person->signature);
             $person->update(['signature' => null]);

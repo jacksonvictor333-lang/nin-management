@@ -11,7 +11,7 @@ class PersonRegistryTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_registration_generates_a_nin_from_the_birth_date(): void
+    public function test_registration_waits_for_approval_then_gets_a_nin_from_the_birth_date(): void
     {
         ['region' => $r, 'district' => $d, 'ward' => $w, 'village' => $v] = $this->locations();
 
@@ -21,7 +21,14 @@ class PersonRegistryTest extends TestCase
             ]))
             ->assertRedirect();
 
-        $person = Person::sole();
+        $person = Person::anyStage()->sole();
+        $this->assertSame('submitted', $person->stage);
+        $this->assertNull($person->nin);
+
+        $this->actingAs($this->user('Approver'))->post("/people/{$person->id}/approve", ['checks' => array_keys(Person::CHECKLIST)]);
+        $person->refresh();
+
+        $this->assertSame('approved', $person->stage);
         $this->assertMatchesRegularExpression('/^19950412\d{12}$/', $person->nin);
         $this->assertSame('Dar es Salaam', $person->region);
         $this->assertSame('Congo', $person->village);
@@ -38,7 +45,7 @@ class PersonRegistryTest extends TestCase
             ->post('/people', $this->personForm(['region_id' => $r->id, 'district_id' => 'TZ0703', 'ward_id' => $w->id]))
             ->assertSessionHasErrors('ward_id');
 
-        $this->assertSame(0, Person::count());
+        $this->assertSame(0, Person::anyStage()->count());
     }
 
     public function test_possible_duplicates_need_confirmation(): void
@@ -53,11 +60,11 @@ class PersonRegistryTest extends TestCase
 
         $this->actingAs($user)->post('/people', $this->personForm(['first_name' => 'Aminah']))
             ->assertSessionHasErrors('confirm_not_duplicate');
-        $this->assertSame(1, Person::count());
+        $this->assertSame(1, Person::anyStage()->count());
 
         $this->actingAs($user)->post('/people', $this->personForm(['first_name' => 'Aminah', 'confirm_not_duplicate' => 1]))
             ->assertRedirect();
-        $this->assertSame(2, Person::count());
+        $this->assertSame(2, Person::anyStage()->count());
     }
 
     public function test_different_people_are_not_flagged(): void
@@ -68,7 +75,7 @@ class PersonRegistryTest extends TestCase
             ->post('/people', $this->personForm(['first_name' => 'Halima', 'phone' => '0699000111']))
             ->assertSessionHasNoErrors();
 
-        $this->assertSame(2, Person::count());
+        $this->assertSame(2, Person::anyStage()->count());
     }
 
     public function test_update_keeps_nin_and_records_old_and_new_values(): void

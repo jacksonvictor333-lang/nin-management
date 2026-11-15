@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Person;
+use App\Models\PersonReview;
 use Carbon\Carbon;
 
 class DashboardController extends Controller
@@ -65,10 +66,33 @@ class DashboardController extends Controller
 
         $recent = Person::latest()->take(8)->get();
 
+        // Idhini: kwa anayeidhinisha (foleni nzima) na kwa Registrar (rekodi zake).
+        $user = auth()->user();
+        $approval = null;
+        if ($user->canApprove() || $user->canRegister()) {
+            $scope = fn () => Person::anyStage()->when(! $user->canApprove(),
+                fn ($q) => $q->where(fn ($w) => $w->where('created_by', $user->id)->orWhere('submitted_by', $user->id)));
+
+            $decided = PersonReview::where('action', 'approved')->where('created_at', '>=', now()->subDays(30))->pluck('person_id');
+            $avgHours = $decided->isEmpty() ? null : Person::anyStage()->whereIn('id', $decided)->whereNotNull('submitted_at')->whereNotNull('reviewed_at')
+                ->get(['submitted_at', 'reviewed_at'])
+                ->avg(fn ($p) => $p->submitted_at->diffInMinutes($p->reviewed_at) / 60);
+
+            $approval = [
+                'mine' => ! $user->canApprove(),
+                'pending' => $scope()->whereIn('stage', [Person::SUBMITTED, Person::IN_REVIEW])->count(),
+                'approvedToday' => $scope()->where('stage', Person::APPROVED)->whereDate('reviewed_at', today())->count(),
+                'returned' => $scope()->where('stage', Person::RETURNED)->count(),
+                'rejected' => $scope()->where('stage', Person::REJECTED)->count(),
+                'drafts' => $scope()->where('stage', Person::DRAFT)->count(),
+                'avgHours' => $avgHours,
+            ];
+        }
+
         return view('dashboard', compact(
             'total', 'male', 'female', 'active',
             'thisMonth', 'lastMonth', 'today',
-            'avgAge', 'ageGroups', 'monthly', 'topRegions', 'recent'
+            'avgAge', 'ageGroups', 'monthly', 'topRegions', 'recent', 'approval'
         ));
     }
 }

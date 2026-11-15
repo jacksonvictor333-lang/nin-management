@@ -44,6 +44,8 @@ return [
         'card_verify_url' => env('CARD_VERIFY_URL'),
         // Idadi ya backup za kuhifadhi (za zamani zaidi zinafutwa).
         'backup_keep' => (int) env('BACKUP_KEEP', 14),
+        // Aliyesajili rekodi hawezi kuiidhinisha mwenyewe. Weka true kwa ofisi yenye mtumiaji mmoja tu.
+        'allow_self_approval' => filter_var(env('APPROVAL_ALLOW_SELF', false), FILTER_VALIDATE_BOOLEAN),
     ],
 
 ];

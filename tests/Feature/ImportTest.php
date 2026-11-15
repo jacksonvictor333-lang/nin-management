@@ -42,21 +42,24 @@ class ImportTest extends TestCase
 
         $preview = $this->actingAs($user)->post('/people/import', ['file' => $file])->assertOk();
         $preview->assertSee('Check before importing')->assertSee('Region &quot;Mbeyaa&quot; was not found.', false);
-        $this->assertSame(1, Person::count(), 'Nothing is saved at preview time');
+        $this->assertSame(1, Person::anyStage()->count(), 'Nothing is saved at preview time');
 
         preg_match('/name="token" value="([^"]+)"/', $preview->getContent(), $m);
 
-        $this->actingAs($user)->post('/people/import/confirm', ['token' => $m[1]])->assertRedirect('/people');
+        $this->actingAs($user)->post('/people/import/confirm', ['token' => $m[1]])->assertRedirect('/my-submissions');
 
-        $this->assertSame(3, Person::count());
-        $amina = Person::where('first_name', 'Amina')->sole();
+        $this->assertSame(3, Person::anyStage()->count());
+        $amina = Person::anyStage()->where('first_name', 'Amina')->sole();
         $this->assertSame(['Dar es Salaam', 'Ilala', 'Kariakoo', 'Congo'], [$amina->region, $amina->district, $amina->ward, $amina->village]);
-        $this->assertStringStartsWith('19950412', $amina->nin);
-        $this->assertSame('1988-08-12', Person::where('first_name', 'Baraka')->sole()->date_of_birth->toDateString());
+        // Zinaingia kwenye foleni ya idhini; NIN inatolewa zikiidhinishwa.
+        $this->assertSame('submitted', $amina->stage);
+        $this->assertNull($amina->nin);
+        $this->assertSame($user->id, $amina->created_by);
+        $this->assertSame('1988-08-12', Person::anyStage()->where('first_name', 'Baraka')->sole()->date_of_birth->toDateString());
 
         // Token haiwezi kutumika mara mbili.
         $this->actingAs($user)->post('/people/import/confirm', ['token' => $m[1]])->assertSessionHasErrors('file');
-        $this->assertSame(3, Person::count());
+        $this->assertSame(3, Person::anyStage()->count());
     }
 
     public function test_possible_duplicates_can_be_included_explicitly(): void
@@ -68,7 +71,7 @@ class ImportTest extends TestCase
         preg_match('/name="token" value="([^"]+)"/', $preview->getContent(), $m);
 
         $this->actingAs($user)->post('/people/import/confirm', ['token' => $m[1], 'include_warnings' => 1]);
-        $this->assertSame(2, Person::count());
+        $this->assertSame(2, Person::anyStage()->count());
     }
 
     public function test_file_without_required_columns_is_rejected(): void

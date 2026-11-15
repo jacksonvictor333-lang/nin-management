@@ -364,6 +364,26 @@
 </style>
 @endpush
 
+@push('styles')
+<style>
+    .apv-strip { background: #fff; border: 1px solid var(--border); border-radius: 18px; padding: 16px 18px; }
+    .apv-strip-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .apv-strip-head .ico { width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; background: #cffafe; color: #0e7490; font-size: 17px; }
+    .apv-strip-head b { display: block; font-size: 15px; color: var(--ink); }
+    .apv-strip-head small { font-size: 12.5px; color: var(--muted); }
+    .apv-strip-link { margin-left: auto; font-size: 13px; font-weight: 700; color: var(--primary); text-decoration: none; }
+    .apv-strip-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+    .apv-strip-grid > * { display: block; padding: 12px 14px; border-radius: 13px; background: #f8fafc; border: 1px solid #eef2f7; text-decoration: none; color: inherit; }
+    .apv-strip-grid a:hover { border-color: var(--primary-light); }
+    .apv-strip-grid small { display: block; font-size: 12px; color: var(--muted); }
+    .apv-strip-grid b { font-size: 22px; font-weight: 800; color: var(--ink); }
+    .apv-strip-grid .hot { background: #eff6ff; border-color: #bfdbfe; }
+    .apv-strip-grid .hot b { color: #1d4ed8; }
+    .apv-strip-grid .warn { background: #fffbeb; border-color: #fde68a; }
+    .apv-strip-grid .warn b { color: #b45309; }
+</style>
+@endpush
+
 @section('content')
 
 <div class="dash viz-root">
@@ -399,6 +419,32 @@
             <div class="lookup-result" id="lookupResult" aria-live="polite"></div>
         </div>
     </section>
+
+    {{-- ================= IDHINI ================= --}}
+    @if ($approval)
+        @php
+            $avg = $approval['avgHours'];
+            $avgText = $avg === null ? '—' : ($avg < 1 ? '< 1 hour' : ($avg < 48 ? round($avg) . ' h' : round($avg / 24, 1) . ' days'));
+        @endphp
+        <section class="apv-strip">
+            <div class="apv-strip-head">
+                <span class="ico"><i class="bi bi-patch-check"></i></span>
+                <div><b>{{ $approval['mine'] ? 'My registrations' : 'Approval workflow' }}</b><small>{{ $approval['mine'] ? 'Where your submissions are' : 'Registrations waiting for a decision' }}</small></div>
+                <a href="{{ route($approval['mine'] ? 'approvals.mine' : 'approvals.index') }}" class="apv-strip-link">Open <i class="bi bi-arrow-right"></i></a>
+            </div>
+            <div class="apv-strip-grid">
+                <a href="{{ route($approval['mine'] ? 'approvals.mine' : 'approvals.index') }}" class="{{ $approval['pending'] ? 'hot' : '' }}"><small>Waiting for approval</small><b>{{ number_format($approval['pending']) }}</b></a>
+                <div><small>Approved today</small><b>{{ number_format($approval['approvedToday']) }}</b></div>
+                <a href="{{ route($approval['mine'] ? 'approvals.mine' : 'approvals.index', $approval['mine'] ? ['stage' => 'returned'] : ['tab' => 'returned']) }}" class="{{ $approval['returned'] && $approval['mine'] ? 'warn' : '' }}"><small>Returned for correction</small><b>{{ number_format($approval['returned']) }}</b></a>
+                @if ($approval['mine'])
+                    <a href="{{ route('approvals.mine', ['stage' => 'draft']) }}"><small>Drafts</small><b>{{ number_format($approval['drafts']) }}</b></a>
+                @else
+                    <div><small>Rejected</small><b>{{ number_format($approval['rejected']) }}</b></div>
+                @endif
+                <div><small>Average approval time (30 days)</small><b>{{ $avgText }}</b></div>
+            </div>
+        </section>
+    @endif
 
     {{-- ================= KPI TILES ================= --}}
     <section class="kpis">

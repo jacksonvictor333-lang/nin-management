@@ -17,7 +17,7 @@ class ArchiveController extends Controller
     {
         $search = trim((string) $request->query('q', ''));
 
-        $people = Person::onlyTrashed()
+        $people = Person::anyStage()->onlyTrashed()
             ->when($search !== '', fn ($q) => $q->where(fn ($w) => $w
                 ->where('nin', 'like', "%{$search}%")
                 ->orWhere('first_name', 'like', "%{$search}%")
@@ -47,7 +47,7 @@ class ArchiveController extends Controller
 
     public function restore(int $id)
     {
-        $person = Person::onlyTrashed()->findOrFail($id);
+        $person = Person::anyStage()->onlyTrashed()->findOrFail($id);
         $person->restore();
         $person->update(['archive_reason' => null]);
 

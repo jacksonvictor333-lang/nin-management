@@ -42,7 +42,11 @@
 
     $v = fn ($value) => filled($value) ? e($value) : '<span class="pf-empty">Not provided</span>';
 
-    $canEdit = in_array(auth()->user()->role ?? 'Administrator', ['Administrator', 'Registrar'], true);
+    // Kuhariri kunategemea jukumu na hatua ya idhini (iliyowasilishwa / iliyokataliwa imefungwa).
+    $canEdit = $person->canBeEditedBy(auth()->user());
+    $approved = $person->isApproved();
+    $reviews = $reviews ?? collect();
+    $matches = $matches ?? collect();
     $isAdmin = (auth()->user()->role ?? 'Administrator') === 'Administrator';
     $history = $history ?? collect();
 @endphp
@@ -108,6 +112,9 @@
         min-width: 300px;
     }
     .pf-nin > i { font-size: 28px; opacity: .85; }
+    .pf-nin .nin-pending { font-family: inherit; font-size: 15px; letter-spacing: 0; opacity: .9; }
+    .idc.is-preview { filter: saturate(.55); }
+    .idc-preview { position: absolute; z-index: 5; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-14deg); padding: 6px 16px; border: 2px dashed #b45309; border-radius: 8px; color: #92400e; background: rgba(255, 251, 235, .92); font-weight: 800; font-size: 13px; letter-spacing: .5px; text-transform: uppercase; white-space: nowrap; pointer-events: none; }
     .pf-nin small { display: block; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; opacity: .7; margin-bottom: 2px; }
     .pf-nin b { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 17px; letter-spacing: 1px; white-space: nowrap; }
     .copy-btn {
@@ -515,15 +522,21 @@
                 </div>
             </div>
 
-            <div class="pf-nin">
+            <div class="pf-nin {{ $person->nin ? '' : 'pending' }}">
                 <i class="bi bi-fingerprint"></i>
                 <div>
                     <small>National Identification Number</small>
-                    <b>{{ $ninGrouped }}</b>
+                    @if ($person->nin)
+                        <b>{{ $ninGrouped }}</b>
+                    @else
+                        <b class="nin-pending">Issued on approval</b>
+                    @endif
                 </div>
+                @if ($person->nin)
                 <button type="button" class="copy-btn no-print" id="copyNin" data-nin="{{ $person->nin }}" title="Copy NIN">
                     <i class="bi bi-copy"></i>
                 </button>
+                @endif
             </div>
         </div>
 
@@ -550,6 +563,11 @@
             </div>
         </div>
     </section>
+
+    {{-- ================= IDHINI ================= --}}
+    @if (! $approved || $reviews->isNotEmpty())
+        @include('partials.approval')
+    @endif
 
     {{-- ================= BODY ================= --}}
     <div class="pf-grid">
@@ -730,13 +748,14 @@
             @if ($canEdit)
             <button type="button" class="btn-pf solid idc-print idc-sign-btn no-print" id="openSignPad"><i class="bi bi-pen"></i><span class="label">{{ $person->signature ? 'Change signature' : 'Add signature' }}</span></button>
             @endif
-            @if ($canEdit)
+            @if ($canEdit && $approved)
             <a href="{{ route('cards.show', $person) }}" target="_blank" class="btn-pf solid idc-print no-print" id="printCard"><i class="bi bi-printer"></i><span class="label">Print card / PDF</span></a>
             @endif
         </div>
 
         <div class="idc-stage">
-            <div class="idc {{ $isActive ? '' : 'is-inactive' }}">
+            <div class="idc {{ $isActive ? '' : 'is-inactive' }} {{ $approved ? '' : 'is-preview' }}">
+                @unless ($approved)<span class="idc-preview">Preview — not valid until approved</span>@endunless
                 <div class="idc-top">
                     <span class="idc-logo"><i class="bi bi-fingerprint"></i></span>
                     <div>
@@ -779,11 +798,11 @@
                 <div class="idc-foot">
                     <div>
                         <small>NIN</small>
-                        <b>{{ $ninGrouped }}</b>
+                        <b>{{ $person->nin ? $ninGrouped : '—' }}</b>
                     </div>
                     <div class="right">
                         <small>Issued</small>
-                        <b>{{ $person->created_at?->format('d/m/Y') ?? '—' }}</b>
+                        <b>{{ $approved ? (($person->reviewed_at ?? $person->created_at)?->format('d/m/Y') ?? '—') : '—' }}</b>
                     </div>
                 </div>
                 <span class="idc-watermark" aria-hidden="true"></span>

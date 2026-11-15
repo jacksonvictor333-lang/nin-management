@@ -10,7 +10,7 @@ use Illuminate\Validation\Rules\Password;
 
 class UserController extends Controller
 {
-    public const ROLES = ['Administrator', 'Registrar', 'Viewer'];
+    public const ROLES = ['Administrator', 'Registrar', 'Approver', 'Viewer'];
 
     public function index()
     {
