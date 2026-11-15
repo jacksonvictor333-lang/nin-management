@@ -26,6 +26,19 @@
     .mini-log small { display: block; color: var(--muted); font-size: 11.5px; }
     .pw-meter { height: 6px; border-radius: 999px; background: #f1f5f9; overflow: hidden; margin-top: 2px; }
     .pw-meter span { display: block; height: 100%; width: 0; transition: width .2s, background .2s; }
+    .tf-text { margin: 0 0 12px; font-size: 13px; color: var(--muted); }
+    .tf-pass { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+    .tf-setup { display: flex; gap: 18px; align-items: flex-start; flex-wrap: wrap; }
+    .tf-setup .qr { width: 168px; height: 168px; padding: 8px; border: 1px solid var(--border); border-radius: 14px; background: #fff; flex-shrink: 0; }
+    .tf-setup .qr svg { width: 100%; height: 100%; display: block; }
+    .tf-setup ol { margin: 0 0 12px; padding-left: 18px; font-size: 13px; color: var(--text); line-height: 1.7; }
+    .tf-setup small { color: var(--muted); }
+    .tf-code { letter-spacing: 6px; font-size: 18px; font-weight: 700; text-align: center; font-family: ui-monospace, Consolas, monospace; }
+    .tf-codes { margin-bottom: 14px; padding: 14px; border-radius: 12px; background: #fffbeb; border: 1px solid #fde68a; }
+    .tf-codes b { color: #92400e; font-size: 14px; }
+    .tf-codes p { margin: 4px 0 10px; font-size: 12.5px; color: #92400e; }
+    .tf-codes .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; margin-bottom: 10px; }
+    .tf-codes code { font-family: ui-monospace, Consolas, monospace; font-size: 13px; padding: 6px 10px; background: #fff; border-radius: 8px; border: 1px dashed #fcd34d; text-align: center; }
 </style>
 @endpush
 
@@ -96,6 +109,78 @@
                     </div>
                     <div style="margin-top:16px;display:flex;justify-content:flex-end"><button class="ui-btn primary"><i class="bi bi-key"></i> Change password</button></div>
                 </form>
+            </section>
+            @php
+                $tb = $errors->getBag('twoFactor');
+                $setup = \App\Http\Controllers\TwoFactorController::setupFor($user);
+                $codes = session('recovery_codes');
+            @endphp
+            <section class="ui-card" id="two-factor">
+                <div class="ui-card-head">
+                    <span class="ico"><i class="bi bi-phone-vibrate"></i></span>
+                    <div><h3>Two-step verification</h3><p>A code from your phone is needed at every sign-in, so a stolen password is not enough.</p></div>
+                    @if ($user->hasTwoFactor())
+                        <span class="end ui-pill ok"><i class="bi bi-shield-check"></i> On</span>
+                    @else
+                        <span class="end ui-pill {{ $user->role === 'Administrator' ? 'warn' : '' }}">Off</span>
+                    @endif
+                </div>
+
+                @if ($codes)
+                    <div class="tf-codes">
+                        <b><i class="bi bi-key"></i> Save these recovery codes now</b>
+                        <p>Each code lets you sign in once if you lose your phone. They will not be shown again.</p>
+                        <div class="grid">@foreach ($codes as $c)<code>{{ $c }}</code>@endforeach</div>
+                        <button type="button" class="ui-btn sm" id="copyCodes" data-codes="{{ implode("\n", $codes) }}"><i class="bi bi-copy"></i> Copy codes</button>
+                    </div>
+                    <script>
+                        document.getElementById('copyCodes').addEventListener('click', function () {
+                            navigator.clipboard.writeText(this.dataset.codes).then(() => { this.textContent = 'Copied'; });
+                        });
+                    </script>
+                @endif
+
+                @if ($user->hasTwoFactor())
+                    <p class="tf-text">Turned on {{ $user->two_factor_confirmed_at->diffForHumans() }}. {{ count($user->two_factor_recovery_codes ?? []) }} recovery {{ Str::plural('code', count($user->two_factor_recovery_codes ?? [])) }} left.</p>
+                    <form method="POST" class="tf-pass" action="{{ route('two-factor.recovery-codes') }}">
+                        @csrf
+                        <div class="ui-field" style="flex:1;min-width:200px">
+                            <label for="tf_password">Confirm with your password</label>
+                            <input class="ui-input {{ $tb->has('current_password') ? 'is-invalid' : '' }}" id="tf_password" type="password" name="current_password" autocomplete="current-password" required>
+                            @if ($tb->has('current_password'))<span class="ui-err">{{ $tb->first('current_password') }}</span>@endif
+                        </div>
+                        <button class="ui-btn"><i class="bi bi-arrow-repeat"></i> New recovery codes</button>
+                        <button class="ui-btn danger" formaction="{{ route('two-factor.disable') }}" name="_method" value="DELETE" onclick="return confirm('Turn off two-step verification?')"><i class="bi bi-shield-x"></i> Turn off</button>
+                    </form>
+                @elseif ($setup)
+                    <div class="tf-setup">
+                        <div class="qr">{!! $setup['qr'] !!}</div>
+                        <div style="flex:1;min-width:220px">
+                            <ol>
+                                <li>Install <b>Google Authenticator</b>, <b>Microsoft Authenticator</b> or <b>Authy</b> on your phone.</li>
+                                <li>In the app, add an account and scan this QR code.<br><small>Can't scan? Enter this key: <span class="ui-mono">{{ $setup['secret'] }}</span></small></li>
+                                <li>Type the 6-digit code the app shows:</li>
+                            </ol>
+                            <form method="POST" action="{{ route('two-factor.confirm') }}" class="tf-pass">
+                                @csrf
+                                <div class="ui-field" style="flex:1;min-width:140px">
+                                    <input class="ui-input tf-code {{ $tb->has('code') ? 'is-invalid' : '' }}" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="000000" required autofocus>
+                                    @if ($tb->has('code'))<span class="ui-err">{{ $tb->first('code') }}</span>@endif
+                                </div>
+                                <button class="ui-btn primary"><i class="bi bi-check2-circle"></i> Confirm</button>
+                            </form>
+                            <form method="POST" action="{{ route('two-factor.cancel') }}" style="margin-top:8px">@csrf<button class="ui-link" style="background:none;border:0;cursor:pointer;font-size:13px;padding:0">Cancel</button></form>
+                        </div>
+                    </div>
+                @else
+                    @if ($user->role === 'Administrator')
+                        <p class="tf-text" style="color:#92400e"><i class="bi bi-exclamation-triangle"></i> Strongly recommended for administrator accounts.</p>
+                    @endif
+                    <form method="POST" action="{{ route('two-factor.enable') }}">
+                        @csrf
+                        <button class="ui-btn primary"><i class="bi bi-shield-lock"></i> Turn on two-step verification</button>
+                    </form>
+                @endif
             </section>
         </div>
 

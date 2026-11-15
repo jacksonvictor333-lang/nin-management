@@ -143,7 +143,8 @@
         .row { display: flex; align-items: center; justify-content: space-between; gap: 8px 14px; flex-wrap: wrap; margin: 4px 0 24px; }
         .check { display: flex; align-items: center; gap: 9px; font-size: 13.5px; color: var(--text); cursor: pointer; user-select: none; }
         .check input { width: 17px; height: 17px; accent-color: var(--accent); cursor: pointer; }
-        .help-link { font-size: 13px; color: var(--muted); }
+        .help-link { font-size: 13px; color: var(--accent-dark); font-weight: 600; text-decoration: none; }
+        .help-link:hover { text-decoration: underline; }
 
         .submit {
             width: 100%; height: 50px; border: 0; border-radius: 13px;
@@ -249,7 +250,7 @@
                         <input type="checkbox" name="remember" value="1" {{ old('remember') ? 'checked' : '' }}>
                         Keep me signed in
                     </label>
-                    <span class="help-link" title="Ask a system administrator to reset your password">Forgot password? Ask an admin</span>
+                    <a class="help-link" href="{{ route('password.request') }}">Forgot password?</a>
                 </div>
 
                 <button type="submit" class="submit" id="submitBtn">

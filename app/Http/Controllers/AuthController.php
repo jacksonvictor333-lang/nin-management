@@ -59,6 +59,20 @@ class AuthController extends Controller
 
         RateLimiter::clear($throttleKey);
 
+        // 2FA: nywila ni sahihi, lakini bado lazima aingize nambari ya authenticator.
+        if (Auth::user()->hasTwoFactor()) {
+            $user = Auth::user();
+            Auth::logout();
+            $request->session()->regenerate();
+            $request->session()->put([
+                'login.2fa.id' => $user->id,
+                'login.2fa.remember' => $request->boolean('remember'),
+                'login.2fa.expires' => now()->addMinutes(5)->timestamp,
+            ]);
+
+            return redirect()->route('two-factor.challenge');
+        }
+
         $request->session()->regenerate();
 
         Auth::user()->forceFill(['last_login_at' => now()])->save();

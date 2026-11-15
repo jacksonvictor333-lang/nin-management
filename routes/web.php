@@ -16,7 +16,9 @@ use App\Http\Controllers\ImportController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\PersonController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\SearchController;
+use App\Http\Controllers\TwoFactorController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VerificationLogController;
 
@@ -27,6 +29,14 @@ use App\Http\Controllers\VerificationLogController;
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
     Route::post('/login', [AuthController::class, 'login'])->name('login.attempt');
+
+    Route::get('/two-factor-challenge', [TwoFactorController::class, 'challenge'])->name('two-factor.challenge');
+    Route::post('/two-factor-challenge', [TwoFactorController::class, 'verify'])->middleware('throttle:10,1')->name('two-factor.verify');
+
+    Route::get('/forgot-password', [PasswordResetController::class, 'request'])->name('password.request');
+    Route::post('/forgot-password', [PasswordResetController::class, 'email'])->middleware('throttle:5,1')->name('password.email');
+    Route::get('/reset-password/{token}', [PasswordResetController::class, 'edit'])->name('password.reset');
+    Route::post('/reset-password', [PasswordResetController::class, 'update'])->middleware('throttle:10,1')->name('password.update');
 });
 
 // =====================================
@@ -69,6 +79,12 @@ Route::middleware(['auth', 'auth.session', 'active'])->group(function () {
     Route::get('/account', [AccountController::class, 'show'])->name('account.show');
     Route::put('/account/profile', [AccountController::class, 'updateProfile'])->name('account.profile');
     Route::put('/account/password', [AccountController::class, 'updatePassword'])->name('account.password');
+
+    Route::post('/account/two-factor', [TwoFactorController::class, 'enable'])->name('two-factor.enable');
+    Route::post('/account/two-factor/confirm', [TwoFactorController::class, 'confirm'])->middleware('throttle:10,1')->name('two-factor.confirm');
+    Route::post('/account/two-factor/cancel', [TwoFactorController::class, 'cancel'])->name('two-factor.cancel');
+    Route::delete('/account/two-factor', [TwoFactorController::class, 'disable'])->name('two-factor.disable');
+    Route::post('/account/two-factor/recovery-codes', [TwoFactorController::class, 'recoveryCodes'])->name('two-factor.recovery-codes');
 
     // JSON kwa dropdown za maeneo kwenye fomu
     Route::prefix('locations')->name('locations.')->group(function () {
