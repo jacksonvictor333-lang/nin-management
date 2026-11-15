@@ -42,6 +42,8 @@ return [
         'timeout' => (int) env('NIN_TIMEOUT', 15),
         // Anwani ambayo simu inaweza kuifikia (mf. http://192.168.1.20:8000) kwa QR ya kadi.
         'card_verify_url' => env('CARD_VERIFY_URL'),
+        // Idadi ya backup za kuhifadhi (za zamani zaidi zinafutwa).
+        'backup_keep' => (int) env('BACKUP_KEEP', 14),
     ],
 
 ];

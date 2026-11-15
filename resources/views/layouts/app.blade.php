@@ -1179,6 +1179,8 @@
             'Administration' => [
                 ['users.index', 'bi-person-gear', 'Users', 'users.*', $isAdmin],
                 ['geo.index', 'bi-geo-alt', 'Locations', 'geo.*', true],
+                ['archive.index', 'bi-archive', 'Archive', 'archive.*', $isAdmin],
+                ['backups.index', 'bi-database-down', 'Backups', 'backups.*', $isAdmin],
                 ['settings.api', 'bi-key', 'API Settings', 'settings.*', $isAdmin],
             ],
             'Account' => [

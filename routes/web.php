@@ -6,6 +6,7 @@ use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\ApiSettingsController;
 use App\Http\Controllers\ArchiveController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BackupController;
 use App\Http\Controllers\CardVerificationController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DataQualityController;
@@ -123,6 +124,11 @@ Route::middleware(['auth', 'auth.session', 'active'])->group(function () {
         Route::delete('/people/{person}', [ArchiveController::class, 'destroy'])->name('people.destroy');
         Route::get('/archive', [ArchiveController::class, 'index'])->name('archive.index');
         Route::patch('/archive/{id}/restore', [ArchiveController::class, 'restore'])->whereNumber('id')->name('archive.restore');
+
+        Route::get('/backups', [BackupController::class, 'index'])->name('backups.index');
+        Route::post('/backups', [BackupController::class, 'store'])->middleware('throttle:5,1')->name('backups.store');
+        Route::get('/backups/{name}', [BackupController::class, 'download'])->name('backups.download');
+        Route::delete('/backups/{name}', [BackupController::class, 'destroy'])->name('backups.destroy');
 
         Route::get('/settings/api', [ApiSettingsController::class, 'index'])->name('settings.api');
         Route::post('/settings/api/rotate', [ApiSettingsController::class, 'rotate'])->name('settings.api.rotate');

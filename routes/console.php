@@ -48,3 +48,18 @@ Artisan::command('nin:create-admin {email?} {--name=Administrator}', function ()
 
     return 0;
 })->purpose('Create or update an administrator account');
+
+/*
+ * Backup ya database na picha/sahihi (storage/app/backups/*.tar.gz).
+ * Inajiendesha kila siku saa 7:00 usiku ikiwa scheduler imewashwa:
+ *   Windows Task Scheduler -> kila dakika: php artisan schedule:run
+ */
+Artisan::command('nin:backup', function () {
+    $this->info('Creating backup…');
+    $backup = app(\App\Support\BackupManager::class)->create('console');
+    $this->info(sprintf('Backup ready: %s (%s KB)', $backup['name'], number_format($backup['size'] / 1024)));
+
+    return 0;
+})->purpose('Back up the database, photos and signatures');
+
+\Illuminate\Support\Facades\Schedule::command('nin:backup')->dailyAt('01:00')->withoutOverlapping();
