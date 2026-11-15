@@ -88,7 +88,7 @@ class PersonController extends Controller
 
             $nin = $datePrefix . $remainingDigits;
 
-        } while (Person::where('nin', $nin)->exists());
+        } while (Person::withTrashed()->where('nin', $nin)->exists());
 
         return $nin;
     }
@@ -229,21 +229,71 @@ class PersonController extends Controller
         }
 
         $person->fill($data);
+        $changes = $this->describeChanges($person);
         $changed = array_keys($person->getDirty());
         $person->save();
 
         if ($changed) {
             ActivityLog::record(
                 'person.updated',
-                "Updated {$person->full_name}: " . implode(', ', array_map(fn ($f) => str_replace('_', ' ', $f), $changed)),
+                "Updated {$person->full_name}: " . implode(', ', array_map(fn ($c) => $c['label'], $changes)),
                 $person,
-                ['fields' => $changed]
+                ['fields' => $changed, 'changes' => array_values($changes)]
             );
         }
 
         return redirect()
             ->route('people.show', $person)
             ->with('success', $changed ? 'Person details updated successfully.' : 'No changes were made.');
+    }
+
+    /**
+     * Thamani ya zamani na mpya kwa kila sehemu iliyobadilika (kwa historia).
+     * ID za maeneo hazionyeshwi: majina yake (region, district...) yanaonyesha badiliko.
+     *
+     * @return array<string, array{field: string, label: string, old: ?string, new: ?string}>
+     */
+    private function describeChanges(Person $person): array
+    {
+        $skip = ['updated_at', 'birth_region_id', 'birth_district_id', 'region_id', 'district_id', 'ward_id', 'village_id'];
+        $labels = ['profile_picture' => 'photo', 'dob' => 'date of birth'];
+        $changes = [];
+
+        foreach ($person->getDirty() as $field => $new) {
+            if (in_array($field, $skip, true)) {
+                continue;
+            }
+
+            $old = $person->getOriginal($field);
+            $format = function ($value) use ($field) {
+                if ($value instanceof \DateTimeInterface) {
+                    return $value->format('Y-m-d');
+                }
+                if ($field === 'profile_picture') {
+                    return $value ? 'photo' : null;
+                }
+
+                return filled($value) ? mb_substr((string) $value, 0, 120) : null;
+            };
+
+            $changes[$field] = [
+                'field' => $field,
+                'label' => $labels[$field] ?? str_replace('_', ' ', $field),
+                'old' => $format($old),
+                'new' => $format($new),
+            ];
+        }
+
+        // Kama ID tu ndizo zilibadilika (jina lilibaki lilelile), bado taja eneo.
+        if (! $changes && $person->isDirty()) {
+            foreach (array_keys($person->getDirty()) as $field) {
+                if ($field !== 'updated_at') {
+                    $changes[$field] = ['field' => $field, 'label' => str_replace(['_id', '_'], ['', ' '], $field) . ' link', 'old' => null, 'new' => null];
+                }
+            }
+        }
+
+        return $changes;
     }
 
     /**

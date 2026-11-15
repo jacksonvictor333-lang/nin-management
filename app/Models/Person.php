@@ -3,10 +3,14 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Person extends Model
 {
+    use HasFactory, SoftDeletes;
+
     protected $fillable = [
 
         // Personal Information
@@ -42,6 +46,7 @@ class Person extends Model
         'profile_picture',
         'signature',
         'status',
+        'archive_reason',
 
         // Father Information
         'father_name',
@@ -73,6 +78,7 @@ class Person extends Model
     {
         return [
             'date_of_birth' => 'date',
+            'deleted_at' => 'datetime',
             'primary_completion_year' => 'integer',
             'secondary_completion_year' => 'integer',
         ];

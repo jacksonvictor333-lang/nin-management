@@ -64,6 +64,7 @@
                             <span class="ico" style="background:{{ $bg }};color:{{ $fg }}"><i class="bi {{ $icon }}"></i></span>
                             <div class="txt">
                                 <p>{{ $log->description }}</p>
+                                @include('partials.changes', ['log' => $log, 'limit' => 6])
                                 <small>
                                     <span><i class="bi bi-person"></i> {{ $log->user?->name ?? 'System' }}</span>
                                     <span class="ui-pill" style="font-size:11px;padding:1px 8px">{{ $log->action }}</span>

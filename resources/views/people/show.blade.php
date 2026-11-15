@@ -43,6 +43,7 @@
     $v = fn ($value) => filled($value) ? e($value) : '<span class="pf-empty">Not provided</span>';
 
     $canEdit = in_array(auth()->user()->role ?? 'Administrator', ['Administrator', 'Registrar'], true);
+    $isAdmin = (auth()->user()->role ?? 'Administrator') === 'Administrator';
     $history = $history ?? collect();
 @endphp
 
@@ -474,6 +475,9 @@
                 @if ($canEdit)
                     <a href="{{ route('people.edit', $person) }}" class="btn-pf"><i class="bi bi-pencil-square"></i><span class="label">Edit details</span></a>
                 @endif
+                @if ($isAdmin)
+                    <button type="button" class="btn-pf" onclick="document.getElementById('archiveDialog').showModal()"><i class="bi bi-archive"></i><span class="label">Archive</span></button>
+                @endif
                 <button type="button" class="btn-pf solid" onclick="window.print()"><i class="bi bi-printer"></i><span class="label">Print</span></button>
             </div>
         </div>
@@ -705,8 +709,9 @@
                     @php [$hIcon, $hFg, $hBg] = $log->presentation(); @endphp
                     <div style="display:flex;gap:10px;padding:9px 0;border-bottom:1px dashed var(--line);font-size:13px">
                         <i class="bi {{ $hIcon }}" style="width:28px;height:28px;border-radius:8px;display:grid;place-items:center;background:{{ $hBg }};color:{{ $hFg }};flex-shrink:0"></i>
-                        <span style="color:var(--text)">{{ $log->description }}
+                        <span style="color:var(--text);flex:1;min-width:0">{{ ! empty($log->properties['changes']) ? 'Updated details' : $log->description }}
                             <small style="display:block;color:var(--muted);font-size:11.5px">{{ $log->user?->name ?? 'System' }} · {{ $log->created_at->diffForHumans() }}</small>
+                            @include('partials.changes', ['log' => $log, 'limit' => 8])
                         </span>
                     </div>
                 @empty
@@ -787,6 +792,31 @@
 
 <div class="toast" id="toast"><i class="bi bi-check-circle-fill"></i> <span>NIN copied to clipboard</span></div>
 
+@if ($isAdmin)
+<dialog class="ui-dialog no-print" id="archiveDialog">
+    <form method="POST" action="{{ route('people.destroy', $person) }}">
+        @csrf @method('DELETE')
+        <div class="ui-dialog-head">
+            <span class="ico" style="width:36px;height:36px;border-radius:10px;display:grid;place-items:center;background:#fef3c7;color:#b45309"><i class="bi bi-archive"></i></span>
+            <h3>Archive {{ $person->full_name }}?</h3>
+            <button type="button" class="ui-btn sm icon" onclick="this.closest('dialog').close()"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <div class="ui-dialog-body">
+            <p style="margin:0 0 14px;font-size:13.5px;color:#475569">The record will be hidden from the register, search, the verification API and card QR checks. Nothing is deleted: an administrator can restore it from <b>Archive</b>.</p>
+            <div class="ui-field">
+                <label for="archive_reason">Reason</label>
+                <input class="ui-input {{ $errors->has('archive_reason') ? 'is-invalid' : '' }}" id="archive_reason" name="archive_reason" required minlength="3" maxlength="255" placeholder="e.g. Duplicate of another record, deceased, registered in error" value="{{ old('archive_reason') }}">
+                @error('archive_reason')<span class="ui-err">{{ $message }}</span>@enderror
+            </div>
+        </div>
+        <div class="ui-dialog-foot">
+            <button type="button" class="ui-btn" onclick="this.closest('dialog').close()">Cancel</button>
+            <button class="ui-btn danger"><i class="bi bi-archive"></i> Archive record</button>
+        </div>
+    </form>
+</dialog>
+@error('archive_reason')<script>document.addEventListener('DOMContentLoaded', () => document.getElementById('archiveDialog').showModal());</script>@enderror
+@endif
 {{-- ================= PHOTO EDITOR ================= --}}
 <div class="pe-backdrop no-print" id="photoEditor" aria-hidden="true">
     <div class="pe" role="dialog" aria-modal="true" aria-labelledby="peTitle">

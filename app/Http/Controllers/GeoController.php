@@ -76,6 +76,7 @@ class GeoController extends Controller
         // Idadi ya watu wanaoishi katika kila eneo lililoonyeshwa.
         $peopleColumn = ['regions' => 'region_id', 'districts' => 'district_id', 'wards' => 'ward_id', 'villages' => 'village_id'][$level];
         $peopleCounts = DB::table('people')
+            ->whereNull('deleted_at')
             ->whereIn($peopleColumn, $items->pluck('id'))
             ->selectRaw("{$peopleColumn} as k, COUNT(*) as c")
             ->groupBy($peopleColumn)

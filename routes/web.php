@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\ApiSettingsController;
+use App\Http\Controllers\ArchiveController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CardVerificationController;
 use App\Http\Controllers\DashboardController;
@@ -114,6 +115,11 @@ Route::middleware(['auth', 'auth.session', 'active'])->group(function () {
 
         Route::post('/geo/wards/{ward}/villages', [GeoController::class, 'storeVillage'])->name('geo.villages.store');
         Route::delete('/geo/villages/{village}', [GeoController::class, 'destroyVillage'])->name('geo.villages.destroy');
+
+        // Archive (soft delete): kuhifadhi na kurudisha rekodi.
+        Route::delete('/people/{person}', [ArchiveController::class, 'destroy'])->name('people.destroy');
+        Route::get('/archive', [ArchiveController::class, 'index'])->name('archive.index');
+        Route::patch('/archive/{id}/restore', [ArchiveController::class, 'restore'])->whereNumber('id')->name('archive.restore');
 
         Route::get('/settings/api', [ApiSettingsController::class, 'index'])->name('settings.api');
         Route::post('/settings/api/rotate', [ApiSettingsController::class, 'rotate'])->name('settings.api.rotate');
