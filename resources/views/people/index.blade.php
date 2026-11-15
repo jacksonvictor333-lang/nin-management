@@ -27,6 +27,9 @@
         background: var(--accent); color: #fff; border: 0; box-shadow: 0 8px 18px -8px rgba(22,163,74,.7);
     }
     .btn-a:hover { background: var(--accent-dark); }
+    .btn-a.ghost { background: #fff; color: var(--accent-dark); border: 1px solid var(--line); box-shadow: none; }
+    .btn-a.ghost:hover { background: #f0fdf4; border-color: #86efac; }
+    .pl-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
     .notice {
         display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 14px;
@@ -148,7 +151,15 @@
             <h2>Registered persons</h2>
             <p>{{ number_format($people->total()) }} {{ Str::plural('record', $people->total()) }}{{ $search !== '' ? ' matching "' . $search . '"' : '' }}</p>
         </div>
-        <a href="{{ route('people.create') }}" class="btn-a"><i class="bi bi-person-plus-fill"></i> Register new person</a>
+        @php $canEditList = in_array(auth()->user()->role ?? 'Administrator', ['Administrator', 'Registrar'], true); @endphp
+        @if ($canEditList)
+            <div class="pl-actions">
+                @if ($people->count())
+                    <a href="{{ route('cards.print', ['ids' => $people->pluck('id')->implode(',')]) }}" target="_blank" class="btn-a ghost" title="Print ID cards for the {{ $people->count() }} people on this page"><i class="bi bi-printer"></i> Print cards ({{ $people->count() }})</a>
+                @endif
+                <a href="{{ route('people.create') }}" class="btn-a"><i class="bi bi-person-plus-fill"></i> Register new person</a>
+            </div>
+        @endif
     </div>
 
     @if ($withoutPhoto > 0 && $photo !== 'without')

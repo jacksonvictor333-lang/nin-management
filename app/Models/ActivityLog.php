@@ -68,6 +68,7 @@ class ActivityLog extends Model
             'data' => ['bi-magic', '#be185d', '#fce7f3'],
             'report' => ['bi-file-earmark-arrow-down', '#334155', '#f1f5f9'],
             'location' => ['bi-geo-alt', '#15803d', '#dcfce7'],
+            'card' => ['bi-printer', '#334155', '#f1f5f9'],
             'backup' => ['bi-database-down', '#0369a1', '#e0f2fe'],
             default => ['bi-activity', '#334155', '#f1f5f9'],
         };

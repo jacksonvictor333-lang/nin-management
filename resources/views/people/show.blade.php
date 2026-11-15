@@ -730,7 +730,9 @@
             @if ($canEdit)
             <button type="button" class="btn-pf solid idc-print idc-sign-btn no-print" id="openSignPad"><i class="bi bi-pen"></i><span class="label">{{ $person->signature ? 'Change signature' : 'Add signature' }}</span></button>
             @endif
-            <button type="button" class="btn-pf solid idc-print no-print" id="printCard"><i class="bi bi-printer"></i><span class="label">Print card</span></button>
+            @if ($canEdit)
+            <a href="{{ route('cards.show', $person) }}" target="_blank" class="btn-pf solid idc-print no-print" id="printCard"><i class="bi bi-printer"></i><span class="label">Print card / PDF</span></a>
+            @endif
         </div>
 
         <div class="idc-stage">
@@ -957,12 +959,6 @@
 
 @push('scripts')
 <script>
-// Chapisha kitambulisho pekee
-document.getElementById("printCard")?.addEventListener("click", () => {
-    document.body.classList.add("print-card");
-    window.print();
-});
-window.addEventListener("afterprint", () => document.body.classList.remove("print-card"));
 
 // ======================================================
 // SIGNATURE PAD: chora sahihi, hifadhi kama PNG iliyokatwa

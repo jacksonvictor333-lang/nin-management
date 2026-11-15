@@ -7,6 +7,7 @@ use App\Http\Controllers\ApiSettingsController;
 use App\Http\Controllers\ArchiveController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BackupController;
+use App\Http\Controllers\CardController;
 use App\Http\Controllers\CardVerificationController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DataQualityController;
@@ -98,6 +99,9 @@ Route::middleware(['auth', 'auth.session', 'active'])->group(function () {
 
         Route::patch('/people/{person}/photo', [PersonController::class, 'updatePhoto'])->name('people.photo.update');
         Route::delete('/people/{person}/photo', [PersonController::class, 'destroyPhoto'])->name('people.photo.destroy');
+
+        Route::get('/people/{person}/card', [CardController::class, 'show'])->name('cards.show');
+        Route::get('/cards/print', [CardController::class, 'bulk'])->name('cards.print');
 
         Route::patch('/people/{person}/signature', [PersonController::class, 'updateSignature'])->name('people.signature.update');
         Route::delete('/people/{person}/signature', [PersonController::class, 'destroySignature'])->name('people.signature.destroy');
