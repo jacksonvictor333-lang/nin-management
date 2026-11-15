@@ -9,6 +9,11 @@ return new class extends Migration
 {
     public function up(): void
     {
+        // Jedwali jipya tayari lina 'nin' (create migration ilisasishwa): ruka.
+        if (Schema::hasColumn('nin_verifications', 'nin')) {
+            return;
+        }
+
         Schema::table('nin_verifications', function (Blueprint $table) {
             $table->string('nin', 20)->index();
         });

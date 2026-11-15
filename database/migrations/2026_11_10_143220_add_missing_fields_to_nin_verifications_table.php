@@ -9,6 +9,11 @@ return new class extends Migration
 {
     public function up(): void
     {
+        // Kwenye usakinishaji mpya columns hizi tayari zipo (create migration): ruka.
+        if (Schema::hasColumn('nin_verifications', 'session_token_hash')) {
+            return;
+        }
+
         Schema::table('nin_verifications', function (Blueprint $table) {
 
             $table->string('session_token_hash', 64)->unique();
