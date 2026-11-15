@@ -12,6 +12,7 @@ use App\Http\Controllers\CardVerificationController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DataQualityController;
 use App\Http\Controllers\GeoController;
+use App\Http\Controllers\ImportController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\PersonController;
 use App\Http\Controllers\ReportController;
@@ -90,6 +91,11 @@ Route::middleware(['auth', 'auth.session', 'active'])->group(function () {
     Route::middleware('role:Administrator,Registrar')->group(function () {
         Route::get('/people/create', [PersonController::class, 'create'])->name('people.create');
         Route::post('/people', [PersonController::class, 'store'])->name('people.store');
+        Route::get('/people/import', [ImportController::class, 'index'])->name('people.import');
+        Route::get('/people/import/template', [ImportController::class, 'template'])->name('people.import.template');
+        Route::post('/people/import', [ImportController::class, 'preview'])->middleware('throttle:20,1')->name('people.import.preview');
+        Route::post('/people/import/confirm', [ImportController::class, 'confirm'])->name('people.import.confirm');
+
         Route::get('/people/duplicates/check', [PersonController::class, 'duplicates'])
             ->middleware('throttle:60,1')
             ->name('people.duplicates');

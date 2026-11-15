@@ -73,29 +73,6 @@ class PersonController extends Controller
     }
 
     /**
-     * Generate unique 20-digit NIN.
-     *
-     * Format: YYYYMMDD + 12 random digits.
-     */
-    private function generateNIN(string $dateOfBirth): string
-    {
-        $datePrefix = Carbon::parse($dateOfBirth)->format('Ymd');
-
-        do {
-            $remainingDigits = '';
-
-            for ($i = 0; $i < 12; $i++) {
-                $remainingDigits .= (string) random_int(0, 9);
-            }
-
-            $nin = $datePrefix . $remainingDigits;
-
-        } while (Person::withTrashed()->where('nin', $nin)->exists());
-
-        return $nin;
-    }
-
-    /**
      * Validation rules za pamoja (usajili + kuhariri).
      */
     private function rules(bool $editing): array
@@ -207,7 +184,7 @@ class PersonController extends Controller
                 ->withErrors(['confirm_not_duplicate' => 'This person may already be registered. Check the matching records and confirm before registering.']);
         }
 
-        $data['nin'] = $this->generateNIN($data['date_of_birth']);
+        $data['nin'] = Person::generateNin($data['date_of_birth']);
 
         if ($request->hasFile('profile_picture')) {
             $data['profile_picture'] = $request->file('profile_picture')->store('profile-pictures', 'public');

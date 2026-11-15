@@ -157,6 +157,7 @@
                 @if ($people->count())
                     <a href="{{ route('cards.print', ['ids' => $people->pluck('id')->implode(',')]) }}" target="_blank" class="btn-a ghost" title="Print ID cards for the {{ $people->count() }} people on this page"><i class="bi bi-printer"></i> Print cards ({{ $people->count() }})</a>
                 @endif
+                <a href="{{ route('people.import') }}" class="btn-a ghost"><i class="bi bi-file-earmark-spreadsheet"></i> Import CSV</a>
                 <a href="{{ route('people.create') }}" class="btn-a"><i class="bi bi-person-plus-fill"></i> Register new person</a>
             </div>
         @endif

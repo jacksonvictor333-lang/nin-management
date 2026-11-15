@@ -1168,6 +1168,7 @@
                 ['dashboard', 'bi-house-door', 'Dashboard', 'dashboard', true],
                 ['people.index', 'bi-people', 'Registered Persons', ['people.index', 'people.show', 'people.edit'], true, number_format($totalPersons)],
                 ['people.create', 'bi-person-plus', 'Register New Person', 'people.create', $canEdit],
+                ['people.import', 'bi-file-earmark-spreadsheet', 'Import from CSV', 'people.import*', $canEdit],
                 ['search', 'bi-search', 'Search NIN', 'search', true],
                 ['verifications.index', 'bi-shield-check', 'NIN Verifications', 'verifications.*', true],
                 ['data-quality.index', 'bi-clipboard2-pulse', 'Data Quality', 'data-quality.*', true],

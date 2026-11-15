@@ -85,6 +85,24 @@ class Person extends Model
     }
 
     /**
+     * NIN mpya ya kipekee: YYYYMMDD (tarehe ya kuzaliwa) + tarakimu 12 za nasibu.
+     * Inakagua pia rekodi zilizohifadhiwa (archived).
+     */
+    public static function generateNin(\DateTimeInterface|string $dateOfBirth): string
+    {
+        $prefix = \Illuminate\Support\Carbon::parse($dateOfBirth)->format('Ymd');
+
+        do {
+            $nin = $prefix;
+            for ($i = 0; $i < 12; $i++) {
+                $nin .= random_int(0, 9);
+            }
+        } while (static::withTrashed()->where('nin', $nin)->exists());
+
+        return $nin;
+    }
+
+    /**
      * Get person's full name
      */
     public function getFullNameAttribute(): string
