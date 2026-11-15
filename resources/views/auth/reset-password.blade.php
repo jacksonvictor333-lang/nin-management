@@ -5,7 +5,7 @@
 
 @section('content')
     <h1>Choose a new password</h1>
-    <p class="sub">Use at least 8 characters. After saving, sign in with the new password.</p>
+    <p class="sub">Use at least 8 characters with upper and lower case letters, a number and a symbol. After saving, sign in with the new password.</p>
 
     <form method="POST" action="{{ route('password.update') }}">
         @csrf

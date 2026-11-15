@@ -44,6 +44,7 @@
         .links a:hover { text-decoration: underline; }
         .toggle { background: none; border: 0; color: var(--accent-dark); font: inherit; font-weight: 600; cursor: pointer; font-size: 13.5px; }
     </style>
+    @stack('styles')
 </head>
 <body>
 <main class="box">

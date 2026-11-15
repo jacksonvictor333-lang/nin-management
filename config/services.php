@@ -48,4 +48,15 @@ return [
         'allow_self_approval' => filter_var(env('APPROVAL_ALLOW_SELF', false), FILTER_VALIDATE_BOOLEAN),
     ],
 
+    // SMS kwa mwombaji (log | beem | africastalking | off)
+    'sms' => [
+        'driver' => env('SMS_DRIVER', 'log'),
+        'key' => env('SMS_API_KEY'),
+        'secret' => env('SMS_API_SECRET'),
+        'username' => env('SMS_USERNAME'),
+        'sender' => env('SMS_SENDER_ID'),
+        'office_name' => env('SMS_OFFICE_NAME', 'ofisi ya usajili'),
+    ],
+
+
 ];

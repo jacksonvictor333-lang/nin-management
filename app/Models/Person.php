@@ -41,8 +41,42 @@ class Person extends Model
         'duplicates' => 'Not a duplicate of an existing record',
         'consistency' => 'Date of birth matches education and parent details',
         'location' => 'Village, ward, district and region are correct',
+        'documents' => 'Supporting documents are attached and match the details',
     ];
 
+    /** Aina za nyaraka za mwombaji. */
+    public const DOCUMENT_TYPES = [
+        'birth_certificate' => 'Birth certificate',
+        'local_government_letter' => 'Local government letter',
+        'parent_id' => "Parent's ID",
+        'passport' => 'Passport',
+        'other' => 'Other document',
+    ];
+
+    // ---------- Mzunguko wa kadi ----------
+    public const CARD_PRINTED = 'printed';
+    public const CARD_READY = 'ready';
+    public const CARD_COLLECTED = 'collected';
+
+    /** [jina, rangi ya ui-pill, ikoni]; null = bado haijachapishwa */
+    public const CARD_STAGES = [
+        'to_print' => ['To print', '', 'bi-printer'],
+        self::CARD_PRINTED => ['Printed', 'info', 'bi-printer-fill'],
+        self::CARD_READY => ['Ready for collection', 'warn', 'bi-box-seam'],
+        self::CARD_COLLECTED => ['Collected', 'ok', 'bi-person-check'],
+    ];
+
+    public const CARD_LOSS_REASONS = ['lost' => 'Lost', 'damaged' => 'Damaged', 'stolen' => 'Stolen'];
+
+    /** Sababu za kusitisha NIN. */
+    public const DEACTIVATION_REASONS = [
+        'deceased' => 'Deceased',
+        'fraud' => 'Fraudulent or false registration',
+        'duplicate' => 'Duplicate identity',
+        'court_order' => 'Revoked by court order',
+        'citizenship' => 'Citizenship renounced or revoked',
+        'other' => 'Other',
+    ];
     /**
      * Rejista (orodha, utafutaji, ripoti, API, QR) inaonyesha rekodi zilizoidhinishwa tu.
      * Tumia Person::anyStage() kwa foleni ya idhini na "My submissions".
@@ -51,6 +85,14 @@ class Person extends Model
     {
         static::addGlobalScope('approved', function (Builder $query) {
             $query->where($query->getModel()->qualifyColumn('stage'), self::APPROVED);
+        });
+
+        // Namba ya ombi ya kudumu: APP-<mwaka>-<id>, kwa kuangalia hali ya ombi.
+        static::created(function (Person $person) {
+            if (! $person->reference) {
+                $person->reference = sprintf('APP-%s-%06d', ($person->created_at ?? now())->format('Y'), $person->id);
+                $person->saveQuietly();
+            }
         });
     }
 
@@ -108,6 +150,18 @@ class Person extends Model
         'reviewer_id',
         'reviewed_at',
         'review_note',
+        'reference',
+        'card_status',
+        'card_version',
+        'card_printed_at',
+        'card_ready_at',
+        'card_collected_at',
+        'card_collected_by',
+        'deactivation_reason',
+        'deactivation_note',
+        'date_of_death',
+        'deactivated_at',
+        'deactivated_by',
 
         // Father Information
         'father_name',
@@ -142,6 +196,12 @@ class Person extends Model
             'deleted_at' => 'datetime',
             'submitted_at' => 'datetime',
             'reviewed_at' => 'datetime',
+            'card_printed_at' => 'datetime',
+            'card_ready_at' => 'datetime',
+            'card_collected_at' => 'datetime',
+            'card_version' => 'integer',
+            'date_of_death' => 'date',
+            'deactivated_at' => 'datetime',
             'primary_completion_year' => 'integer',
             'secondary_completion_year' => 'integer',
         ];
@@ -287,5 +347,42 @@ class Person extends Model
     {
         return $this->stage === self::IN_REVIEW
             && ($this->reviewer_id === $user->id || $user->role === 'Administrator');
+    }
+
+    // ---------- Nyaraka, kadi, kusitishwa ----------
+
+    public function documents(): HasMany
+    {
+        return $this->hasMany(PersonDocument::class)->latest('id');
+    }
+
+    public function cardEvents(): HasMany
+    {
+        return $this->hasMany(CardEvent::class)->orderBy('id');
+    }
+
+    public function deactivator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'deactivated_by');
+    }
+
+    public function isDeactivated(): bool
+    {
+        return $this->deactivation_reason !== null;
+    }
+
+    public function deactivationLabel(): ?string
+    {
+        return $this->deactivation_reason ? (self::DEACTIVATION_REASONS[$this->deactivation_reason] ?? ucfirst($this->deactivation_reason)) : null;
+    }
+
+    public function cardStageKey(): string
+    {
+        return $this->card_status ?: 'to_print';
+    }
+
+    public function cardStageLabel(): string
+    {
+        return self::CARD_STAGES[$this->cardStageKey()][0];
     }
 }

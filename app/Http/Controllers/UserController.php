@@ -30,7 +30,7 @@ class UserController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'role' => ['required', Rule::in(self::ROLES)],
-            'password' => ['required', 'confirmed', Password::min(8)->letters()->numbers()],
+            'password' => ['required', 'confirmed', Password::defaults()],
         ]);
 
         $user = User::create($data + ['is_active' => true]);
@@ -46,7 +46,7 @@ class UserController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
             'role' => ['required', Rule::in(self::ROLES)],
-            'password' => ['nullable', 'confirmed', Password::min(8)->letters()->numbers()],
+            'password' => ['nullable', 'confirmed', Password::defaults()],
         ]);
 
         if (blank($data['password'] ?? null)) {

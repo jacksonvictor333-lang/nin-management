@@ -99,7 +99,7 @@
                             <label for="password">New password</label>
                             <input class="ui-input {{ $wb->has('password') ? 'is-invalid' : '' }}" id="password" type="password" name="password" autocomplete="new-password" required>
                             <div class="pw-meter"><span id="pwMeter"></span></div>
-                            <span class="ui-help" id="pwHint">At least 8 characters, with letters and numbers.</span>
+                            <span class="ui-help" id="pwHint">At least 8 characters with upper and lower case letters, a number and a symbol (e.g. Test@1234).</span>
                             @if ($wb->has('password'))<span class="ui-err">{{ $wb->first('password') }}</span>@endif
                         </div>
                         <div class="ui-field">
@@ -222,7 +222,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (/[A-Z]/.test(v) && /[a-z]/.test(v)) score++;
         if (/[^A-Za-z0-9]/.test(v)) score++;
 
-        const levels = [['0%', '#e2e8f0', 'At least 8 characters, with letters and numbers.'], ['25%', '#ef4444', 'Weak'], ['45%', '#f59e0b', 'Fair'], ['65%', '#eab308', 'Good'], ['85%', '#22c55e', 'Strong'], ['100%', '#15803d', 'Very strong']];
+        const levels = [['0%', '#e2e8f0', 'At least 8 characters with upper and lower case letters, a number and a symbol (e.g. Test@1234).'], ['25%', '#ef4444', 'Weak'], ['45%', '#f59e0b', 'Fair'], ['65%', '#eab308', 'Good'], ['85%', '#22c55e', 'Strong'], ['100%', '#15803d', 'Very strong']];
         const [w, c, t] = levels[v ? Math.max(score, 1) : 0];
         meter.style.width = w;
         meter.style.background = c;

@@ -71,7 +71,7 @@
                                 <td>
                                     <a href="{{ route('people.show', $p) }}" class="ui-who" style="text-decoration:none;color:inherit">
                                         <x-avatar :person="$p" :size="34" />
-                                        <div><b>{{ $p->full_name }}</b><small>{{ $p->nin ? 'NIN ' . $p->nin : 'NIN issued on approval' }}</small></div>
+                                        <div><b>{{ $p->full_name }}</b><small>{{ $p->reference }} · {{ $p->nin ? 'NIN ' . $p->nin : 'NIN on approval' }}</small></div>
                                     </a>
                                 </td>
                                 <td>

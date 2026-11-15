@@ -180,7 +180,12 @@
         @media (prefers-reduced-motion: reduce) {
             *, *::before, *::after { animation: none !important; transition: none !important; }
         }
-    </style>
+        .alert.warn { background: #fffbeb; border-color: #fde68a; color: #92400e; }
+    .status-link { display: flex; align-items: center; gap: 10px; margin-top: 18px; padding: 12px 14px; border-radius: 12px; border: 1px dashed #cbd5e1; color: #334155; text-decoration: none; font-size: 13.5px; }
+    .status-link:hover { border-color: #16a34a; color: #15803d; background: #f0fdf4; }
+    .status-link span { flex: 1; }
+    .status-link b { color: #0f172a; }
+</style>
 </head>
 <body>
 
@@ -215,6 +220,11 @@
                 <div class="alert ok" role="status">
                     <i class="bi bi-check-circle-fill"></i>
                     <span>{{ session('status') }}</span>
+                </div>
+            @elseif (request()->boolean('expired'))
+                <div class="alert warn" role="status">
+                    <i class="bi bi-hourglass-bottom"></i>
+                    <span>You were signed out because the system was not used for {{ (int) config('session.lifetime') }} minutes. Sign in again to continue.</span>
                 </div>
             @endif
 
@@ -264,6 +274,12 @@
                 <i class="bi bi-shield-lock-fill"></i>
                 <span>Access is monitored. Sign-ins are recorded in the activity log.</span>
             </div>
+
+            <a class="status-link" href="{{ route('status.show') }}">
+                <i class="bi bi-search"></i>
+                <span><b>Applicant?</b> Check the status of your ID application</span>
+                <i class="bi bi-arrow-right"></i>
+            </a>
         </div>
     </section>
 </main>

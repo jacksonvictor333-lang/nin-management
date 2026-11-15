@@ -49,7 +49,7 @@ class AccountController extends Controller
     {
         $request->validateWithBag('password', [
             'current_password' => ['required', 'current_password'],
-            'password' => ['required', 'confirmed', 'different:current_password', Password::min(8)->letters()->numbers()],
+            'password' => ['required', 'confirmed', 'different:current_password', Password::defaults()],
         ]);
 
         $user = $request->user();

@@ -36,6 +36,11 @@
             <h2>Reports & export</h2>
             <p>Filter the register, review the summary, then download or print.</p>
         </div>
+        @if ((auth()->user()->role ?? 'Administrator') === 'Administrator')
+            <div class="ui-head-actions">
+                <a href="{{ route('reports.performance') }}" class="ui-btn"><i class="bi bi-speedometer2"></i> Staff performance</a>
+            </div>
+        @endif
     </div>
 
     <form class="ui-card" method="GET" action="{{ route('reports.index') }}">

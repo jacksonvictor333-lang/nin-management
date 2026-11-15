@@ -57,7 +57,17 @@
     </div>
 
     @isset($person)
-        @if ($isActive)
+        @if ($deactivated ?? null)
+            <div class="verdict bad">
+                <i class="bi bi-x-octagon-fill"></i>
+                <div><b>NIN deactivated — {{ $deactivated }}</b><span>This identity is no longer valid. Do not accept this card.</span></div>
+            </div>
+        @elseif ($replaced ?? false)
+            <div class="verdict bad">
+                <i class="bi bi-x-octagon-fill"></i>
+                <div><b>Card no longer valid</b><span>This card was reported lost, stolen or damaged and has been replaced. Do not accept it.</span></div>
+            </div>
+        @elseif ($isActive)
             <div class="verdict ok">
                 <i class="bi bi-patch-check-fill"></i>
                 <div><b>Valid card</b><span>This card matches an active record.</span></div>

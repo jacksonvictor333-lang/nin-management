@@ -41,6 +41,11 @@ class ApprovalFlow
 
         ActivityLog::record("approval.{$action}", "{$text}: {$person->full_name}" . ($stage === Person::APPROVED ? " (NIN {$person->nin})" : '')
             . ($note && $action !== 'approved' ? " — {$note}" : ''), $person);
+
+        // SMS kwa mwombaji kwa hatua anazohitaji kujua.
+        if (in_array($action, ['submitted', 'approved', 'returned', 'rejected'], true)) {
+            Sms::notifyPerson($person, $action, $note);
+        }
     }
 
     /** Kengele kwa aliyewasilisha (au aliyesajili), si kwa aliyefanya uamuzi. */

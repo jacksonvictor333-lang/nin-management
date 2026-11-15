@@ -267,6 +267,15 @@
     .btn-primary:disabled { opacity: .55; cursor: not-allowed; transform: none; }
     .foot-right { display: flex; gap: 10px; }
     .hidden { display: none !important; }
+    .docs-up { margin-top: 16px; padding: 16px; border: 1px dashed #cbd5e1; border-radius: 14px; background: #fcfcfd; }
+    .docs-up-head { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 12px; }
+    .docs-up-head > i { font-size: 22px; color: #15803d; }
+    .docs-up-head b { display: block; font-size: 14px; color: #0f172a; }
+    .docs-up-head span { font-size: 12.5px; color: #64748b; }
+    .docs-up-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .docs-type { height: 40px; border: 1.5px solid #e5e7eb; border-radius: 10px; padding: 0 10px; font: inherit; font-size: 13.5px; background: #fff; }
+    .docs-up input[type=file] { font-size: 13px; min-width: 0; max-width: 100%; }
+    .docs-hint { display: block; margin-top: 8px; font-size: 12px; color: #94a3b8; }
     .returned-note { display: flex; gap: 10px; margin-top: 14px; padding: 12px 14px; border-radius: 12px; background: #fffbeb; border: 1px solid #fde68a; color: #78350f; font-size: 13px; line-height: 1.5; }
     .returned-note b { display: block; }
     .returned-note.info { background: #eff6ff; border-color: #bfdbfe; color: #1e3a8a; }
@@ -683,6 +692,25 @@
             @endunless
 
             <div class="review" id="review"></div>
+
+            @unless ($editing)
+            <div class="docs-up">
+                <div class="docs-up-head">
+                    <i class="bi bi-folder2-open"></i>
+                    <div><b>Supporting documents</b><span>Birth certificate, local government letter… The approver checks them. You can also add them later on the profile.</span></div>
+                </div>
+                <div class="docs-up-row">
+                    <select name="document_type" class="docs-type" aria-label="Document type">
+                        @foreach (\App\Models\Person::DOCUMENT_TYPES as $k => $label)
+                            <option value="{{ $k }}" @selected(old('document_type', 'birth_certificate') === $k)>{{ $label }}</option>
+                        @endforeach
+                    </select>
+                    <input type="file" name="documents[]" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/*" multiple>
+                </div>
+                <small class="docs-hint">PDF, JPG or PNG · up to 5 MB each · max 5 files</small>
+                @if ($errors->has('documents') || $errors->has('documents.*'))<span class="err"><i class="bi bi-exclamation-circle"></i>{{ $errors->first('documents') ?: $errors->first('documents.*') }}</span>@endif
+            </div>
+            @endunless
 
             <label class="confirm">
                 <input type="checkbox" id="confirmCheck">

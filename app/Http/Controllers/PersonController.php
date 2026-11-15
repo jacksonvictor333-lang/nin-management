@@ -178,6 +178,11 @@ class PersonController extends Controller
     public function store(Request $request)
     {
         $data = $this->validatedData($request, false);
+        $request->validate([
+            'document_type' => ['nullable', Rule::in(array_keys(Person::DOCUMENT_TYPES))],
+            'documents' => ['nullable', 'array', 'max:5'],
+            'documents.*' => ['file', 'mimes:' . DocumentController::MIMES, 'max:' . DocumentController::MAX_KB],
+        ], ['documents.*.max' => 'Each document must be 5 MB or smaller.', 'documents.*.mimes' => 'Documents must be PDF, JPG or PNG.']);
 
         // Zuia usajili wa mara mbili: lazima mhudumu athibitishe kuwa ni mtu tofauti.
         $duplicates = app(DuplicateFinder::class)->candidates($data);
@@ -198,6 +203,10 @@ class PersonController extends Controller
 
         $person = Person::create($data);
 
+        foreach ($request->file('documents', []) as $file) {
+            DocumentController::save($person, $file, $request->input('document_type') ?: 'other');
+        }
+
         ActivityLog::record('person.created', "Registered {$person->full_name}" . ($submit ? '' : ' (draft)'), $person,
             $duplicates->isNotEmpty() ? ['confirmed_not_duplicate_of' => $duplicates->map(fn ($d) => $d['person']->nin)->all()] : []);
 
@@ -211,7 +220,7 @@ class PersonController extends Controller
         return redirect()
             ->route('people.show', $person->id)
             ->with('success', $submit
-                ? 'Registered and sent for approval. The NIN will be issued once the record is approved.'
+                ? "Registered and sent for approval. Application number: {$person->reference}. The NIN will be issued once the record is approved."
                 : 'Saved as draft. Submit it for approval when it is complete.');
     }
 
@@ -393,7 +402,7 @@ class PersonController extends Controller
         $verifyUrl = $person->isApproved() ? CardVerificationController::urlFor($person) : null;
         $qrSvg = $verifyUrl ? QrCode::svg($verifyUrl, 200, '#14532d') : null;
 
-        $person->load(['creator:id,name', 'submitter:id,name', 'reviewer:id,name']);
+        $person->load(['creator:id,name', 'submitter:id,name', 'reviewer:id,name', 'deactivator:id,name', 'documents.uploader:id,name', 'cardEvents.user:id,name']);
         $reviews = $person->reviews()->with('user:id,name')->get();
 
         // Kwa anayeidhinisha: rekodi zinazofanana (huenda ni mtu yuleyule).

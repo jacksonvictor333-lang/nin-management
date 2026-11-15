@@ -4,14 +4,18 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\ApiSettingsController;
+use App\Http\Controllers\ApplicationStatusController;
 use App\Http\Controllers\ApprovalController;
 use App\Http\Controllers\ArchiveController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BackupController;
 use App\Http\Controllers\CardController;
+use App\Http\Controllers\CardLifecycleController;
 use App\Http\Controllers\CardVerificationController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DataQualityController;
+use App\Http\Controllers\DeactivationController;
+use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\GeoController;
 use App\Http\Controllers\ImportController;
 use App\Http\Controllers\LocationController;
@@ -19,6 +23,7 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PersonController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\PasswordResetController;
+use App\Http\Controllers\PerformanceController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\TwoFactorController;
 use App\Http\Controllers\UserController;
@@ -49,6 +54,10 @@ Route::get('/verify/card/{person}', [CardVerificationController::class, 'show'])
     ->middleware(['signed:relative', 'throttle:30,1'])
     ->name('card.verify');
 
+// Mwombaji anaangalia hali ya ombi lake (namba ya ombi + tarehe ya kuzaliwa)
+Route::get('/status', [ApplicationStatusController::class, 'show'])->name('status.show');
+Route::post('/status', [ApplicationStatusController::class, 'check'])->middleware('throttle:10,1')->name('status.check');
+
 // =====================================
 // SEHEMU ZINAZOHITAJI KUINGIA
 // =====================================
@@ -56,6 +65,9 @@ Route::get('/verify/card/{person}', [CardVerificationController::class, 'show'])
 Route::middleware(['auth', 'auth.session', 'active'])->group(function () {
 
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+
+    // Kuongeza muda wa session (kitufe "Stay signed in" kwenye onyo la kutotumika)
+    Route::get('/session/ping', fn () => response()->noContent())->name('session.ping');
 
     Route::get('/', fn () => redirect()->route('dashboard'));
 
@@ -97,6 +109,9 @@ Route::middleware(['auth', 'auth.session', 'active'])->group(function () {
 
     Route::get('/geo', [GeoController::class, 'index'])->name('geo.index');
 
+    // Nyaraka za mwombaji (kuangalia / kupakua)
+    Route::get('/documents/{document}', [DocumentController::class, 'show'])->name('documents.show');
+
     // Kengele ya taarifa (idhini zilizofanyika kwenye rekodi zangu)
     Route::get('/notifications/{id}', [NotificationController::class, 'open'])->name('notifications.open');
     Route::post('/notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.read-all');
@@ -134,6 +149,15 @@ Route::middleware(['auth', 'auth.session', 'active'])->group(function () {
         Route::patch('/people/{person}/signature', [PersonController::class, 'updateSignature'])->name('people.signature.update');
         Route::delete('/people/{person}/signature', [PersonController::class, 'destroySignature'])->name('people.signature.destroy');
 
+        Route::post('/people/{person}/documents', [DocumentController::class, 'store'])->middleware('throttle:30,1')->name('documents.store');
+        Route::delete('/documents/{document}', [DocumentController::class, 'destroy'])->name('documents.destroy');
+
+        // Mzunguko wa kadi: kuchapishwa → iko tayari → imekabidhiwa; kadi mbadala.
+        Route::get('/cards', [CardLifecycleController::class, 'index'])->name('cards.index');
+        Route::post('/cards/bulk', [CardLifecycleController::class, 'bulk'])->name('cards.bulk');
+        Route::post('/people/{person}/card-status', [CardLifecycleController::class, 'update'])->name('cards.status');
+        Route::post('/people/{person}/card-replace', [CardLifecycleController::class, 'replace'])->name('cards.replace');
+
         // Rekodi nilizosajili na hatua zake; kuwasilisha rasimu kwa idhini.
         Route::get('/my-submissions', [ApprovalController::class, 'mine'])->name('approvals.mine');
         Route::post('/people/{person}/submit', [ApprovalController::class, 'submit'])->name('approvals.submit');
@@ -158,6 +182,12 @@ Route::middleware(['auth', 'auth.session', 'active'])->group(function () {
     Route::middleware('role:Administrator')->group(function () {
         Route::post('/data-quality/fix/regions', [DataQualityController::class, 'fixRegions'])->name('data-quality.fix-regions');
         Route::post('/data-quality/fix/names', [DataQualityController::class, 'fixNames'])->name('data-quality.fix-names');
+
+        Route::get('/reports/performance', [PerformanceController::class, 'index'])->name('reports.performance');
+
+        // Kusitisha / kurejesha NIN (kifo, udanganyifu...)
+        Route::post('/people/{person}/deactivate', [DeactivationController::class, 'store'])->name('people.deactivate');
+        Route::delete('/people/{person}/deactivate', [DeactivationController::class, 'destroy'])->name('people.reactivate');
 
         Route::get('/users', [UserController::class, 'index'])->name('users.index');
         Route::post('/users', [UserController::class, 'store'])->name('users.store');

@@ -142,7 +142,7 @@
                     <label>Confirm password</label>
                     <input class="ui-input" type="password" name="password_confirmation" autocomplete="new-password" required>
                 </div>
-                <span class="ui-help full">At least 8 characters, with letters and numbers.</span>
+                <span class="ui-help full">At least 8 characters with upper and lower case letters, a number and a symbol (e.g. Test@1234).</span>
             </div>
         </div>
         <div class="ui-dialog-foot">

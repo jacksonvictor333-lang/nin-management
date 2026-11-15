@@ -1189,6 +1189,8 @@
         $pendingApprovals = $canApprove
             ? \App\Models\Person::anyStage()->whereIn('stage', ['submitted', 'in_review'])->count()
             : 0;
+        // Kadi zilizo tayari kuchukuliwa (zinasubiri mwenyewe).
+        $cardsReady = $canEdit ? \App\Models\Person::where('card_status', 'ready')->count() : 0;
         $needsMe = $canEdit && $authUser
             ? \App\Models\Person::anyStage()->whereIn('stage', ['returned', 'draft'])
                 ->where(fn ($q) => $q->where('created_by', $authUser->id)->orWhere('submitted_by', $authUser->id))->count()
@@ -1201,13 +1203,15 @@
                 ['people.create', 'bi-person-plus', 'Register New Person', 'people.create', $canEdit],
                 ['approvals.mine', 'bi-inboxes', 'My Submissions', 'approvals.mine', $canEdit, $needsMe ?: null, 'attn'],
                 ['approvals.index', 'bi-patch-check', 'Approvals', 'approvals.index', $canApprove, $pendingApprovals ?: null, 'attn'],
+                ['cards.index', 'bi-person-vcard', 'Cards', 'cards.index', $canEdit, $cardsReady ?: null],
                 ['people.import', 'bi-file-earmark-spreadsheet', 'Import from CSV', 'people.import*', $canEdit],
                 ['search', 'bi-search', 'Search NIN', 'search', true],
                 ['verifications.index', 'bi-shield-check', 'NIN Verifications', 'verifications.*', true],
                 ['data-quality.index', 'bi-clipboard2-pulse', 'Data Quality', 'data-quality.*', true],
             ],
             'Reports' => [
-                ['reports.index', 'bi-file-earmark-bar-graph', 'Reports & Export', 'reports.*', true],
+                ['reports.index', 'bi-file-earmark-bar-graph', 'Reports & Export', ['reports.index', 'reports.export', 'reports.print'], true],
+                ['reports.performance', 'bi-speedometer2', 'Staff Performance', 'reports.performance', $isAdmin],
                 ['activity.index', 'bi-clock-history', 'Activity Log', 'activity.*', true],
             ],
             'Administration' => [
@@ -1514,6 +1518,50 @@
 
     });
 
+})();
+</script>
+
+{{-- Onyo la kutotumika: session inaisha baada ya SESSION_LIFETIME dakika bila ombi lolote. --}}
+<dialog class="ui-dialog" id="idleDialog" style="width:min(420px,calc(100vw - 32px))">
+    <div class="ui-dialog-head"><span class="ico" style="font-size:20px;color:#b45309"><i class="bi bi-hourglass-split"></i></span><h3>Still there?</h3></div>
+    <div class="ui-dialog-body" style="font-size:14px;line-height:1.55">
+        For security you will be signed out in <b id="idleLeft">2:00</b> because the system has not been used.
+    </div>
+    <div class="ui-dialog-foot">
+        <form method="POST" action="{{ route('logout') }}" style="margin:0">@csrf<button class="ui-btn">Sign out</button></form>
+        <button type="button" class="ui-btn primary" id="idleStay"><i class="bi bi-arrow-repeat"></i> Stay signed in</button>
+    </div>
+</dialog>
+<script>
+(function () {
+    const lifetime = {{ (int) config('session.lifetime') }} * 60 * 1000;
+    const warnBefore = Math.min(120000, lifetime / 4);
+    const dlg = document.getElementById('idleDialog');
+    let deadline, warnTimer, endTimer, tick;
+
+    function schedule() {
+        clearTimeout(warnTimer); clearTimeout(endTimer); clearInterval(tick);
+        deadline = Date.now() + lifetime;
+        warnTimer = setTimeout(warn, lifetime - warnBefore);
+        endTimer = setTimeout(() => location.href = @json(route('login')) + '?expired=1', lifetime + 1000);
+    }
+    function warn() {
+        if (!dlg.open) dlg.showModal();
+        const left = document.getElementById('idleLeft');
+        tick = setInterval(() => {
+            const s = Math.max(0, Math.round((deadline - Date.now()) / 1000));
+            left.textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+        }, 500);
+    }
+    document.getElementById('idleStay').addEventListener('click', async function () {
+        try {
+            const res = await fetch(@json(route('session.ping')), { headers: { 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' });
+            if (res.redirected || !res.ok) { location.href = @json(route('login')); return; }
+        } catch (e) { /* mtandao: jaribu tena baadaye */ }
+        dlg.close();
+        schedule();
+    });
+    schedule();
 })();
 </script>
 

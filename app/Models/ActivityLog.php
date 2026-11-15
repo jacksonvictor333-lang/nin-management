@@ -71,6 +71,8 @@ class ActivityLog extends Model
             'card' => ['bi-printer', '#334155', '#f1f5f9'],
             'backup' => ['bi-database-down', '#0369a1', '#e0f2fe'],
             'approval' => ['bi-patch-check', '#0e7490', '#cffafe'],
+            'sms' => ['bi-chat-dots', '#0f766e', '#ccfbf1'],
+            'document' => ['bi-folder2-open', '#b45309', '#fef3c7'],
             default => ['bi-activity', '#334155', '#f1f5f9'],
         };
     }

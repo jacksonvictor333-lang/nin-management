@@ -31,13 +31,13 @@ class AccountSecurityTest extends TestCase
 
         $this->get("/reset-password/{$token}?email=clerk@example.com")->assertOk();
 
-        $this->post('/reset-password', ['token' => 'wrong', 'email' => 'clerk@example.com', 'password' => 'new-password-1', 'password_confirmation' => 'new-password-1'])
+        $this->post('/reset-password', ['token' => 'wrong', 'email' => 'clerk@example.com', 'password' => 'New-password-1', 'password_confirmation' => 'New-password-1'])
             ->assertSessionHasErrors('email');
 
-        $this->post('/reset-password', ['token' => $token, 'email' => 'clerk@example.com', 'password' => 'new-password-1', 'password_confirmation' => 'new-password-1'])
+        $this->post('/reset-password', ['token' => $token, 'email' => 'clerk@example.com', 'password' => 'New-password-1', 'password_confirmation' => 'New-password-1'])
             ->assertRedirect('/login');
 
-        $this->assertTrue(Hash::check('new-password-1', $user->fresh()->password));
+        $this->assertTrue(Hash::check('New-password-1', $user->fresh()->password));
     }
 
     public function test_two_factor_setup_from_my_account(): void

@@ -206,6 +206,7 @@
                 'signature' => $hasSign ? ['ok', 'Signature attached'] : ['bad', 'No signature'],
                 'duplicates' => $matches->isEmpty() ? ['ok', 'No matches found'] : ['bad', $matches->count() . ' possible ' . Str::plural('match', $matches->count())],
                 'location' => $person->village ? ['ok', ''] : ['bad', 'Incomplete address'],
+                'documents' => $person->documents->isNotEmpty() ? ['ok', $person->documents->count() . ' attached — see below'] : ['bad', 'No documents'],
             ];
         @endphp
         <form class="review-box" method="POST" action="{{ route('approvals.approve', $person) }}" id="reviewForm">

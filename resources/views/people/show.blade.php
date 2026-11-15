@@ -112,6 +112,7 @@
         min-width: 300px;
     }
     .pf-nin > i { font-size: 28px; opacity: .85; }
+    .pf-nin small.nin-ref { margin: 4px 0 0; text-transform: none; letter-spacing: .3px; font-size: 11.5px; opacity: .75; }
     .pf-nin .nin-pending { font-family: inherit; font-size: 15px; letter-spacing: 0; opacity: .9; }
     .idc.is-preview { filter: saturate(.55); }
     .idc-preview { position: absolute; z-index: 5; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-14deg); padding: 6px 16px; border: 2px dashed #b45309; border-radius: 8px; color: #92400e; background: rgba(255, 251, 235, .92); font-weight: 800; font-size: 13px; letter-spacing: .5px; text-transform: uppercase; white-space: nowrap; pointer-events: none; }
@@ -482,6 +483,9 @@
                 @if ($canEdit)
                     <a href="{{ route('people.edit', $person) }}" class="btn-pf"><i class="bi bi-pencil-square"></i><span class="label">Edit details</span></a>
                 @endif
+                @if ($isAdmin && $approved && ! $person->isDeactivated())
+                    <button type="button" class="btn-pf" onclick="document.getElementById('deactivateDialog').showModal()"><i class="bi bi-slash-circle"></i><span class="label">Deactivate NIN</span></button>
+                @endif
                 @if ($isAdmin)
                     <button type="button" class="btn-pf" onclick="document.getElementById('archiveDialog').showModal()"><i class="bi bi-archive"></i><span class="label">Archive</span></button>
                 @endif
@@ -531,6 +535,7 @@
                     @else
                         <b class="nin-pending">Issued on approval</b>
                     @endif
+                    @if ($person->reference)<small class="nin-ref" title="Application number — the applicant uses it to check status">Application {{ $person->reference }}</small>@endif
                 </div>
                 @if ($person->nin)
                 <button type="button" class="copy-btn no-print" id="copyNin" data-nin="{{ $person->nin }}" title="Copy NIN">
@@ -563,6 +568,8 @@
             </div>
         </div>
     </section>
+
+    @include('partials.deactivation')
 
     {{-- ================= IDHINI ================= --}}
     @if (! $approved || $reviews->isNotEmpty())
@@ -740,6 +747,9 @@
         </div>
     </div>
 
+    {{-- ================= NYARAKA ================= --}}
+    @include('partials.documents')
+
     {{-- ================= KITAMBULISHO (ID CARD) ================= --}}
     <section class="pf-card idc-wrap" id="id-card">
         <div class="pf-card-head">
@@ -748,7 +758,7 @@
             @if ($canEdit)
             <button type="button" class="btn-pf solid idc-print idc-sign-btn no-print" id="openSignPad"><i class="bi bi-pen"></i><span class="label">{{ $person->signature ? 'Change signature' : 'Add signature' }}</span></button>
             @endif
-            @if ($canEdit && $approved)
+            @if ($canEdit && $approved && ! $person->isDeactivated())
             <a href="{{ route('cards.show', $person) }}" target="_blank" class="btn-pf solid idc-print no-print" id="printCard"><i class="bi bi-printer"></i><span class="label">Print card / PDF</span></a>
             @endif
         </div>
@@ -808,6 +818,8 @@
                 <span class="idc-watermark" aria-hidden="true"></span>
             </div>
         </div>
+
+        @include('partials.card-lifecycle')
     </section>
 </div>
 

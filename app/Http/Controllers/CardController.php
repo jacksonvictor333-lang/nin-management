@@ -19,7 +19,7 @@ class CardController extends Controller
 
     public function show(Person $person)
     {
-        abort_unless($person->isApproved(), 404);
+        abort_unless($person->isApproved() && ! $person->isDeactivated(), 404);
 
         return $this->render(collect([$person]));
     }
@@ -31,7 +31,8 @@ class CardController extends Controller
 
         abort_if($ids->isEmpty(), 404);
 
-        $people = Person::whereIn('id', $ids)->get()->sortBy(fn ($p) => $ids->search($p->id))->values();
+        $people = Person::whereIn('id', $ids)->whereNull('deactivation_reason')->get()->sortBy(fn ($p) => $ids->search($p->id))->values();
+        abort_if($people->isEmpty(), 404);
 
         return $this->render($people);
     }
