@@ -3,12 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Models\ActivityLog;
+use App\Support\DuplicateFinder;
 use App\Support\QrCode;
 use App\Models\Person;
 use App\Models\Region;
 use App\Models\District;
 use App\Models\Ward;
 use App\Models\Village;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -197,6 +199,14 @@ class PersonController extends Controller
     {
         $data = $this->validatedData($request, false);
 
+        // Zuia usajili wa mara mbili: lazima mhudumu athibitishe kuwa ni mtu tofauti.
+        $duplicates = app(DuplicateFinder::class)->candidates($data);
+        if ($duplicates->isNotEmpty() && ! $request->boolean('confirm_not_duplicate')) {
+            return back()
+                ->withInput($request->except('profile_picture'))
+                ->withErrors(['confirm_not_duplicate' => 'This person may already be registered. Check the matching records and confirm before registering.']);
+        }
+
         $data['nin'] = $this->generateNIN($data['date_of_birth']);
 
         if ($request->hasFile('profile_picture')) {
@@ -205,7 +215,8 @@ class PersonController extends Controller
 
         $person = Person::create($data);
 
-        ActivityLog::record('person.created', "Registered {$person->full_name} (NIN {$person->nin})", $person);
+        ActivityLog::record('person.created', "Registered {$person->full_name} (NIN {$person->nin})", $person,
+            $duplicates->isNotEmpty() ? ['confirmed_not_duplicate_of' => $duplicates->map(fn ($d) => $d['person']->nin)->all()] : []);
 
         return redirect()
             ->route('people.show', $person->id)
@@ -245,6 +256,33 @@ class PersonController extends Controller
         return redirect()
             ->route('people.show', $person)
             ->with('success', $changed ? 'Person details updated successfully.' : 'No changes were made.');
+    }
+
+    /**
+     * JSON kwa fomu ya usajili: watu waliopo wanaofanana na taarifa zilizoandikwa.
+     */
+    public function duplicates(Request $request, DuplicateFinder $finder): JsonResponse
+    {
+        $data = $request->validate([
+            'first_name' => ['nullable', 'string', 'max:100'],
+            'middle_name' => ['nullable', 'string', 'max:100'],
+            'last_name' => ['nullable', 'string', 'max:100'],
+            'date_of_birth' => ['nullable', 'date'],
+            'phone' => ['nullable', 'string', 'max:20'],
+            'except' => ['nullable', 'integer'],
+        ]);
+
+        return response()->json([
+            'matches' => $finder->candidates($data, $data['except'] ?? null)->take(5)->map(fn ($m) => [
+                'name' => $m['person']->full_name,
+                'nin' => $m['person']->nin,
+                'dob' => $m['person']->date_of_birth?->format('d M Y'),
+                'region' => $m['person']->region,
+                'phone' => $m['person']->phone,
+                'reasons' => $m['reasons'],
+                'url' => route('people.show', $m['person']),
+            ])->values(),
+        ]);
     }
 
     /**

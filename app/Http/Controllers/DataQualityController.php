@@ -6,6 +6,7 @@ use App\Models\ActivityLog;
 use App\Models\District;
 use App\Models\Person;
 use App\Models\Region;
+use App\Support\DuplicateFinder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -17,7 +18,17 @@ class DataQualityController extends Controller
         $people = Person::orderBy('first_name')->get();
         $regions = $this->regionIndex();
 
+        $pairs = app(DuplicateFinder::class)->pairs();
+
         $issues = [
+            'duplicates' => [
+                'title' => 'Possible duplicate registrations',
+                'hint' => 'Similar names with the same date of birth or phone number. Compare each pair and archive the extra record.',
+                'icon' => 'bi-people',
+                'severity' => 'serious',
+                'pairs' => $pairs,
+                'people' => $pairs->flatMap(fn ($p) => [$p['a'], $p['b']])->unique('id')->values(),
+            ],
             'no_photo' => [
                 'title' => 'No profile picture',
                 'hint' => 'Add a photo from each person\'s profile (camera button).',

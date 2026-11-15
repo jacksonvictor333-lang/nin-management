@@ -25,6 +25,7 @@
         2 => ['birth_region_id', 'birth_district_id', 'region_id', 'district_id', 'ward_id', 'village_id', 'phone', 'email'],
         3 => ['father_name', 'father_phone', 'mother_name', 'mother_phone', 'guardian_name', 'guardian_phone'],
         4 => ['education_level', 'primary_school', 'primary_completion_year', 'secondary_school', 'secondary_completion_year', 'higher_institution', 'course', 'qualification'],
+        5 => ['confirm_not_duplicate'],
     ];
 
     $startStep = 1;
@@ -228,6 +229,22 @@
     .review-person .photo-frame { width: 64px; height: 64px; font-size: 26px; border-radius: 14px; }
     .review-person b { font-size: 18px; color: var(--ink); display: block; }
     .review-person small { color: #64748b; font-size: 13px; }
+
+    /* Onyo la usajili wa mara mbili */
+    .dup { margin-bottom: 18px; border: 1px solid #fecaca; background: #fef2f2; border-radius: 14px; padding: 14px 16px; }
+    .dup-head { display: flex; gap: 12px; align-items: flex-start; color: #991b1b; }
+    .dup-head i { font-size: 22px; }
+    .dup-head b { display: block; font-size: 14.5px; }
+    .dup-head span { font-size: 12.5px; color: #b91c1c; }
+    .dup-list { display: grid; gap: 8px; margin: 12px 0; }
+    .dup-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 11px; background: #fff; border: 1px solid #fee2e2; text-decoration: none; color: inherit; }
+    .dup-item:hover { border-color: #fca5a5; }
+    .dup-item b { display: block; font-size: 13.5px; color: var(--ink); }
+    .dup-item small { font-size: 12px; color: #64748b; }
+    .dup-item .why { margin-left: auto; display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+    .dup-item .why span { font-size: 10.5px; font-weight: 700; padding: 2px 7px; border-radius: 999px; background: #fee2e2; color: #991b1b; white-space: nowrap; }
+    .dup-confirm { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; color: #7f1d1d; cursor: pointer; }
+    .dup-confirm input { margin-top: 2px; accent-color: #dc2626; width: 16px; height: 16px; }
 
     .confirm { display: flex; gap: 10px; align-items: flex-start; margin-top: 18px; padding: 14px; border-radius: 12px; background: #fffbeb; border: 1px solid #fde68a; font-size: 13px; color: #78350f; cursor: pointer; }
     .confirm input { margin-top: 2px; accent-color: var(--accent); width: 16px; height: 16px; }
@@ -633,6 +650,24 @@
                 <div><small>Step 5</small><h3>Review & submit</h3></div>
             </div>
 
+            @unless ($editing)
+            <div class="dup" id="dupBox" @unless ($errors->has('confirm_not_duplicate')) hidden @endunless>
+                <div class="dup-head">
+                    <i class="bi bi-people-fill"></i>
+                    <div>
+                        <b>Possible duplicate registration</b>
+                        <span>These existing records look like the same person. Open them to compare before registering.</span>
+                    </div>
+                </div>
+                <div class="dup-list" id="dupList"></div>
+                <label class="dup-confirm">
+                    <input type="checkbox" name="confirm_not_duplicate" value="1" id="dupConfirm">
+                    <span>I have checked these records: this is a <b>different person</b> and should get a new NIN.</span>
+                </label>
+                @error('confirm_not_duplicate')<span class="err"><i class="bi bi-exclamation-circle"></i>{{ $message }}</span>@enderror
+            </div>
+            @endunless
+
             <div class="review" id="review"></div>
 
             <label class="confirm">
@@ -714,7 +749,7 @@ document.addEventListener('DOMContentLoaded', function () {
         $('nextBtn').classList.toggle('hidden', n === TOTAL);
         $('submitBtn').classList.toggle('hidden', n !== TOTAL);
 
-        if (n === TOTAL) buildReview();
+        if (n === TOTAL) { buildReview(); checkDuplicates(); }
 
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -749,7 +784,43 @@ document.addEventListener('DOMContentLoaded', function () {
         $('submitBtn').innerHTML = '<i class="bi bi-hourglass-split"></i> Registering…';
     });
 
-    $('confirmCheck').addEventListener('change', function () { $('submitBtn').disabled = !this.checked; });
+    // ==========================================
+    // 1b. USAJILI WA MARA MBILI (duplicate check)
+    // ==========================================
+    var dupBox = document.getElementById('dupBox');
+    var dupFound = dupBox ? !dupBox.hidden : false;
+
+    function refreshSubmit() {
+        const ok = $('confirmCheck').checked && (!dupFound || ($('dupConfirm') && $('dupConfirm').checked));
+        $('submitBtn').disabled = !ok;
+    }
+
+    async function checkDuplicates() {
+        dupBox = document.getElementById('dupBox');
+        if (!dupBox) return;
+        const val = (n) => (form.querySelector('[name="' + n + '"]') || {}).value || '';
+        const params = new URLSearchParams({
+            first_name: val('first_name'), middle_name: val('middle_name'), last_name: val('last_name'),
+            date_of_birth: val('date_of_birth'), phone: val('phone'),
+        });
+        try {
+            const res = await fetch(@json(route('people.duplicates')) + '?' + params, { headers: { Accept: 'application/json' } });
+            if (!res.ok) return;
+            const { matches } = await res.json();
+            dupFound = matches.length > 0;
+            dupBox.hidden = !dupFound;
+            if (!dupFound) $('dupConfirm').checked = false;
+            $('dupList').innerHTML = matches.map((m) =>
+                '<a class="dup-item" href="' + m.url + '" target="_blank" rel="noopener"><i class="bi bi-person-badge" style="font-size:20px;color:#b91c1c"></i>' +
+                '<span><b>' + escape(m.name) + '</b><small>NIN ' + m.nin + ' · born ' + escape(m.dob || '—') + (m.region ? ' · ' + escape(m.region) : '') + '</small></span>' +
+                '<span class="why">' + m.reasons.map((r) => '<span>' + escape(r) + '</span>').join('') + '</span></a>'
+            ).join('');
+        } catch (e) { /* ukaguzi wa ziada tu: seva bado inakagua wakati wa kuhifadhi */ }
+        refreshSubmit();
+    }
+
+    if ($('dupConfirm')) $('dupConfirm').addEventListener('change', refreshSubmit);
+    $('confirmCheck').addEventListener('change', refreshSubmit);
 
     // ==========================================
     // 2. AGE + NIN PREVIEW

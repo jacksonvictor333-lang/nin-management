@@ -103,6 +103,32 @@
                             </div>
                         @endif
 
+                        @if ($key === 'duplicates')
+                        <div class="issue-list ui-table-wrap">
+                            <table class="ui-table">
+                                <tbody>
+                                    @foreach ($issue['pairs'] as $pair)
+                                        <tr>
+                                            @foreach (['a', 'b'] as $side)
+                                                @php $p = $pair[$side]; @endphp
+                                                <td>
+                                                    <a class="ui-who" href="{{ route('people.show', $p) }}" style="text-decoration:none">
+                                                        <x-avatar :person="$p" :size="32" />
+                                                        <span><b>{{ $p->full_name }}</b><small class="ui-mono" style="color:var(--muted)">{{ $p->nin }} · {{ $p->date_of_birth?->format('d M Y') }}</small></span>
+                                                    </a>
+                                                </td>
+                                                @if ($side === 'a')<td style="width:28px;color:#cbd5e1;text-align:center"><i class="bi bi-arrow-left-right"></i></td>@endif
+                                            @endforeach
+                                            <td class="num">
+                                                @foreach (array_unique($pair['reasons']) as $r)<span class="ui-pill bad" style="font-size:11px;margin:1px">{{ $r }}</span>@endforeach
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                        <p style="margin:10px 2px 0;font-size:12.5px;color:var(--muted)"><i class="bi bi-info-circle"></i> If two records are the same person, keep the correct one and archive the other with the reason "Duplicate of NIN …".</p>
+                        @else
                         <div class="issue-list ui-table-wrap">
                             <table class="ui-table">
                                 <tbody>
@@ -136,6 +162,7 @@
                                 </tbody>
                             </table>
                         </div>
+                        @endif
                     </div>
                 @endif
             </details>

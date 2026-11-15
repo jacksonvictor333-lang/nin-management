@@ -88,6 +88,9 @@ Route::middleware(['auth', 'auth.session', 'active'])->group(function () {
     Route::middleware('role:Administrator,Registrar')->group(function () {
         Route::get('/people/create', [PersonController::class, 'create'])->name('people.create');
         Route::post('/people', [PersonController::class, 'store'])->name('people.store');
+        Route::get('/people/duplicates/check', [PersonController::class, 'duplicates'])
+            ->middleware('throttle:60,1')
+            ->name('people.duplicates');
 
         Route::get('/people/{person}/edit', [PersonController::class, 'edit'])->name('people.edit');
         Route::put('/people/{person}', [PersonController::class, 'update'])->name('people.update');
